@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Gerçek zamanlı kripto para piyasalarını takip edin. Bitcoin, Ethereum ve 1000+ coin için fiyat, grafik ve kişisel izleme listesi." />
+  <meta name="keywords" content="kripto, bitcoin, ethereum, piyasa, takip, fiyat, coin" />
+  <meta name="theme-color" content="#0a0a0f" />
+  <title>CryptoNova — Kripto Piyasa Platformu</title>
+
+  <!-- Favicon (SVG inline data URI) -->
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>₿</text></svg>" />
+
+  <!-- Google Fonts: Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- ============================================================
+       ARKA PLAN — Animasyonlu partiküller + gradient blob
+  ============================================================ -->
+  <div class="bg-canvas" aria-hidden="true">
+    <div class="bg-blob bg-blob--1"></div>
+    <div class="bg-blob bg-blob--2"></div>
+    <div class="bg-blob bg-blob--3"></div>
+    <canvas id="particleCanvas"></canvas>
+  </div>
+
+  <!-- ============================================================
+       NAVİGASYON ÇUBUĞU
+  ============================================================ -->
+  <header class="navbar" role="banner">
+    <div class="container navbar__inner">
+
+      <!-- Logo -->
+      <a href="#" class="navbar__logo" id="logoHome" aria-label="CryptoNova Ana Sayfa">
+        <span class="logo-icon" aria-hidden="true">◈</span>
+        <span class="logo-text">Crypto<span class="logo-accent">Nova</span></span>
+      </a>
+
+      <!-- Küresel Piyasa Bant -->
+      <div class="navbar__ticker" id="globalTicker" role="marquee" aria-label="Piyasa özeti">
+        <div class="ticker-inner" id="tickerInner">
+          <span class="ticker-item">Yükleniyor...</span>
+        </div>
+      </div>
+
+      <!-- Sağ: Arama + Auth -->
+      <div class="navbar__actions">
+        <!-- Arama -->
+        <div class="search-wrapper" id="searchWrapper">
+          <button class="icon-btn" id="searchToggleBtn" aria-label="Arama aç" aria-expanded="false">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+          </button>
+          <div class="search-dropdown" id="searchDropdown" hidden>
+            <div class="search-input-wrap">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+              <input
+                type="search"
+                id="searchInput"
+                class="search-input"
+                placeholder="Bitcoin, ETH, Solana..."
+                autocomplete="off"
+                aria-label="Coin ara"
+                aria-controls="searchResults"
+              />
+            </div>
+            <ul class="search-results" id="searchResults" role="listbox" aria-label="Arama sonuçları"></ul>
+          </div>
+        </div>
+
+        <!-- Giriş Yapılmamış: Auth Butonları -->
+        <div class="auth-buttons" id="authButtons">
+          <button class="btn btn--ghost btn--sm" id="loginBtn">Giriş Yap</button>
+          <button class="btn btn--primary btn--sm" id="registerBtn">Kayıt Ol</button>
+        </div>
+
+        <!-- Giriş Yapılmış: Kullanıcı Menüsü -->
+        <div class="user-menu" id="userMenu" hidden>
+          <button class="user-menu__trigger" id="userMenuTrigger" aria-expanded="false" aria-haspopup="true">
+            <div class="user-avatar" id="userAvatar" aria-hidden="true">U</div>
+            <span class="user-name" id="navUsername">Kullanıcı</span>
+            <svg class="user-menu__chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="user-dropdown" id="userDropdown" hidden role="menu">
+            <div class="user-dropdown__header">
+              <span class="user-dropdown__email" id="dropdownEmail"></span>
+            </div>
+            <button class="user-dropdown__item" id="watchlistNavBtn" role="menuitem">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+              İzleme Listesi
+            </button>
+            <div class="user-dropdown__divider" role="separator"></div>
+            <button class="user-dropdown__item user-dropdown__item--danger" id="logoutBtn" role="menuitem">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+              Çıkış Yap
+            </button>
+          </div>
+        </div>
+      </div><!-- /.navbar__actions -->
+
+    </div><!-- /.container -->
+  </header>
+
+  <!-- ============================================================
+       ANA İÇERİK
+  ============================================================ -->
+  <main class="main-content" id="mainContent" role="main">
+    <div class="container">
+
+      <!-- === HERO BÖLÜMÜ === -->
+      <section class="hero" aria-labelledby="heroTitle">
+        <div class="hero__text">
+          <div class="hero__badge">
+            <span class="badge-dot" aria-hidden="true"></span>
+            Canlı Piyasa Verileri
+          </div>
+          <h1 class="hero__title" id="heroTitle">
+            Kripto Piyasasını<br />
+            <span class="gradient-text">Gerçek Zamanlı</span> Takip Et
+          </h1>
+          <p class="hero__subtitle">
+            1000+ kripto paranın anlık fiyat, hacim ve piyasa verilerini takip edin.
+            Kişisel izleme listenizi oluşturun.
+          </p>
+          <div class="hero__cta">
+            <button class="btn btn--primary btn--lg" id="heroExploreBtn">
+              Piyasayı Keşfet
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+            </button>
+            <button class="btn btn--ghost btn--lg" id="heroWatchlistBtn">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+              İzleme Listesi
+            </button>
+          </div>
+        </div>
+
+        <!-- Hero İstatistik Kartları -->
+        <div class="hero__stats" role="complementary" aria-label="Piyasa istatistikleri">
+          <div class="stat-card glass" id="statMarketCap">
+            <div class="stat-card__label">Toplam Piyasa Değeri</div>
+            <div class="stat-card__value skeleton-line" id="statMarketCapValue">—</div>
+            <div class="stat-card__change" id="statMarketCapChange"></div>
+          </div>
+          <div class="stat-card glass" id="statVolume">
+            <div class="stat-card__label">24s Hacim</div>
+            <div class="stat-card__value skeleton-line" id="statVolumeValue">—</div>
+          </div>
+          <div class="stat-card glass" id="statBtcDom">
+            <div class="stat-card__label">BTC Dominance</div>
+            <div class="stat-card__value skeleton-line" id="statBtcDomValue">—</div>
+          </div>
+          <div class="stat-card glass" id="statCoins">
+            <div class="stat-card__label">Aktif Coin</div>
+            <div class="stat-card__value skeleton-line" id="statCoinsValue">—</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- === TREND COİNLER === -->
+      <section class="section" aria-labelledby="trendingTitle">
+        <div class="section__header">
+          <div>
+            <h2 class="section__title" id="trendingTitle">
+              <span class="section-icon" aria-hidden="true">🔥</span>
+              Trend Coinler
+            </h2>
+            <p class="section__subtitle">Son 24 saatte en çok aranan coinler</p>
+          </div>
+        </div>
+        <div class="trending-grid" id="trendingGrid" role="list" aria-label="Trend coinler">
+          <!-- Skeleton loading -->
+          <div class="trending-card skeleton-card" aria-hidden="true"></div>
+          <div class="trending-card skeleton-card" aria-hidden="true"></div>
+          <div class="trending-card skeleton-card" aria-hidden="true"></div>
+          <div class="trending-card skeleton-card" aria-hidden="true"></div>
+          <div class="trending-card skeleton-card" aria-hidden="true"></div>
+          <div class="trending-card skeleton-card" aria-hidden="true"></div>
+          <div class="trending-card skeleton-card" aria-hidden="true"></div>
+        </div>
+      </section>
+
+      <!-- === İZLEME LİSTESİ BÖLÜMÜ (yalnızca giriş yapılınca görünür) === -->
+      <section class="section watchlist-section" id="watchlistSection" hidden aria-labelledby="watchlistTitle">
+        <div class="section__header">
+          <div>
+            <h2 class="section__title" id="watchlistTitle">
+              <span class="section-icon" aria-hidden="true">⭐</span>
+              İzleme Listem
+            </h2>
+            <p class="section__subtitle">Favori coinlerinizi buradan takip edin</p>
+          </div>
+        </div>
+        <div class="watchlist-grid" id="watchlistGrid" role="list" aria-label="İzleme listesi coinleri">
+          <!-- Dinamik olarak doldurulur -->
+        </div>
+        <div class="watchlist-empty" id="watchlistEmpty" hidden>
+          <div class="empty-icon" aria-hidden="true">🔍</div>
+          <p>İzleme listeniz boş.</p>
+          <p class="empty-sub">Piyasa tablosundan ★ ikonuna tıklayarak coin ekleyebilirsiniz.</p>
+        </div>
+      </section>
+
+      <!-- === PİYASA TABLOSU === -->
+      <section class="section" id="marketSection" aria-labelledby="marketTitle">
+        <div class="section__header">
+          <div>
+            <h2 class="section__title" id="marketTitle">
+              <span class="section-icon" aria-hidden="true">📊</span>
+              Piyasa Tablosu
+            </h2>
+            <p class="section__subtitle">Piyasa değerine göre sıralanmış coinler</p>
+          </div>
+          <!-- Filtre & Sıralama Araçları -->
+          <div class="market-controls">
+            <div class="currency-tabs" role="group" aria-label="Para birimi seçimi">
+              <button class="currency-tab active" data-currency="usd" aria-pressed="true">USD</button>
+              <button class="currency-tab" data-currency="eur" aria-pressed="false">EUR</button>
+              <button class="currency-tab" data-currency="try" aria-pressed="false">TRY</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tablo -->
+        <div class="table-wrapper">
+          <table class="market-table" id="marketTable" aria-label="Kripto para piyasa tablosu">
+            <thead>
+              <tr>
+                <th scope="col" class="col-rank">#</th>
+                <th scope="col" class="col-coin">Coin</th>
+                <th scope="col" class="col-price sortable" data-sort="price" tabindex="0" aria-sort="none">Fiyat</th>
+                <th scope="col" class="col-1h sortable" data-sort="1h" tabindex="0" aria-sort="none">1s %</th>
+                <th scope="col" class="col-24h sortable" data-sort="24h" tabindex="0" aria-sort="none">24s %</th>
+                <th scope="col" class="col-7d sortable" data-sort="7d" tabindex="0" aria-sort="none">7g %</th>
+                <th scope="col" class="col-mcap sortable" data-sort="mcap" tabindex="0" aria-sort="none">Piyasa Değeri</th>
+                <th scope="col" class="col-volume">24s Hacim</th>
+                <th scope="col" class="col-spark">7 Günlük</th>
+                <th scope="col" class="col-action"><span class="sr-only">İşlem</span></th>
+              </tr>
+            </thead>
+            <tbody id="marketTableBody" aria-live="polite" aria-label="Coin listesi">
+              <!-- Skeleton rows -->
+              <tr class="skeleton-row" aria-hidden="true"><td colspan="10"><div class="skeleton-line"></div></td></tr>
+              <tr class="skeleton-row" aria-hidden="true"><td colspan="10"><div class="skeleton-line"></div></td></tr>
+              <tr class="skeleton-row" aria-hidden="true"><td colspan="10"><div class="skeleton-line"></div></td></tr>
+              <tr class="skeleton-row" aria-hidden="true"><td colspan="10"><div class="skeleton-line"></div></td></tr>
+              <tr class="skeleton-row" aria-hidden="true"><td colspan="10"><div class="skeleton-line"></div></td></tr>
+              <tr class="skeleton-row" aria-hidden="true"><td colspan="10"><div class="skeleton-line"></div></td></tr>
+              <tr class="skeleton-row" aria-hidden="true"><td colspan="10"><div class="skeleton-line"></div></td></tr>
+              <tr class="skeleton-row" aria-hidden="true"><td colspan="10"><div class="skeleton-line"></div></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Sayfalama -->
+        <div class="pagination" id="pagination" aria-label="Sayfalama">
+          <button class="btn btn--ghost btn--sm" id="prevPage" disabled aria-label="Önceki sayfa">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+            Önceki
+          </button>
+          <span class="pagination__info" id="pageInfo" aria-live="polite">Sayfa 1</span>
+          <button class="btn btn--ghost btn--sm" id="nextPage" aria-label="Sonraki sayfa">
+            Sonraki
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+          </button>
+        </div>
+      </section>
+
+    </div><!-- /.container -->
+  </main>
+
+  <!-- ============================================================
+       FOOTER
+  ============================================================ -->
+  <footer class="footer" role="contentinfo">
+    <div class="container footer__inner">
+      <div class="footer__brand">
+        <span class="logo-icon" aria-hidden="true">◈</span>
+        <span class="logo-text">Crypto<span class="logo-accent">Nova</span></span>
+      </div>
+      <p class="footer__copy">
+        Veriler CoinGecko API aracılığıyla sağlanmaktadır.
+        <span class="footer__live-dot" aria-hidden="true"></span>
+        <span id="lastUpdateTime">—</span> güncellendi
+      </p>
+      <p class="footer__disclaimer">
+        Bu uygulama yatırım tavsiyesi vermez. Kripto para piyasaları yüksek risk içerir.
+      </p>
+    </div>
+  </footer>
+
+  <!-- ============================================================
+       AUTH MODAL (Login / Register)
+  ============================================================ -->
+  <div class="modal-overlay" id="authModalOverlay" role="dialog" aria-modal="true" aria-labelledby="authModalTitle" hidden>
+    <div class="modal auth-modal" id="authModal">
+
+      <button class="modal__close" id="closeAuthModal" aria-label="Modalı kapat">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+
+      <!-- Modal Başlık -->
+      <div class="auth-modal__header">
+        <span class="logo-icon" aria-hidden="true">◈</span>
+        <h2 class="auth-modal__title" id="authModalTitle">CryptoNova'ya Hoş Geldiniz</h2>
+        <p class="auth-modal__subtitle">Hesabınıza giriş yapın veya yeni hesap oluşturun</p>
+      </div>
+
+      <!-- Sekmeler -->
+      <div class="auth-tabs" role="tablist" aria-label="Giriş veya kayıt">
+        <button class="auth-tab active" id="loginTab" role="tab" aria-selected="true" aria-controls="loginPanel">Giriş Yap</button>
+        <button class="auth-tab" id="registerTab" role="tab" aria-selected="false" aria-controls="registerPanel">Kayıt Ol</button>
+      </div>
+
+      <!-- Hata / Başarı Mesajı -->
+      <div class="auth-alert" id="authAlert" role="alert" aria-live="assertive" hidden></div>
+
+      <!-- === GİRİŞ FORMU === -->
+      <div class="auth-panel" id="loginPanel" role="tabpanel" aria-labelledby="loginTab">
+        <form class="auth-form" id="loginForm" novalidate>
+          <div class="form-group">
+            <label class="form-label" for="loginEmail">E-posta Adresi</label>
+            <div class="input-wrapper">
+              <svg class="input-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+              <input type="email" id="loginEmail" name="email" class="form-input" placeholder="ornek@email.com" autocomplete="email" required aria-required="true" />
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="loginPassword">Şifre</label>
+            <div class="input-wrapper">
+              <svg class="input-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+              <input type="password" id="loginPassword" name="password" class="form-input" placeholder="••••••••" autocomplete="current-password" required aria-required="true" />
+              <button type="button" class="password-toggle" aria-label="Şifreyi göster/gizle" data-target="loginPassword">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+              </button>
+            </div>
+          </div>
+          <button type="submit" class="btn btn--primary btn--full" id="loginSubmitBtn">
+            <span class="btn-text">Giriş Yap</span>
+            <span class="btn-spinner" aria-hidden="true" hidden></span>
+          </button>
+        </form>
+        <p class="auth-switch">
+          Hesabınız yok mu?
+          <button class="link-btn" id="switchToRegister">Kayıt Ol</button>
+        </p>
+      </div>
+
+      <!-- === KAYIT FORMU === -->
+      <div class="auth-panel" id="registerPanel" role="tabpanel" aria-labelledby="registerTab" hidden>
+        <form class="auth-form" id="registerForm" novalidate>
+          <div class="form-group">
+            <label class="form-label" for="registerUsername">Kullanıcı Adı</label>
+            <div class="input-wrapper">
+              <svg class="input-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+              <input type="text" id="registerUsername" name="username" class="form-input" placeholder="kullanici_adi" autocomplete="username" required aria-required="true" minlength="3" maxlength="30" />
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="registerEmail">E-posta Adresi</label>
+            <div class="input-wrapper">
+              <svg class="input-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+              <input type="email" id="registerEmail" name="email" class="form-input" placeholder="ornek@email.com" autocomplete="email" required aria-required="true" />
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="registerPassword">Şifre</label>
+            <div class="input-wrapper">
+              <svg class="input-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+              <input type="password" id="registerPassword" name="password" class="form-input" placeholder="En az 6 karakter" autocomplete="new-password" required aria-required="true" minlength="6" />
+              <button type="button" class="password-toggle" aria-label="Şifreyi göster/gizle" data-target="registerPassword">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+              </button>
+            </div>
+            <!-- Şifre Gücü Göstergesi -->
+            <div class="password-strength" id="passwordStrength" aria-live="polite">
+              <div class="strength-bar"><div class="strength-fill" id="strengthFill"></div></div>
+              <span class="strength-label" id="strengthLabel"></span>
+            </div>
+          </div>
+          <button type="submit" class="btn btn--primary btn--full" id="registerSubmitBtn">
+            <span class="btn-text">Hesap Oluştur</span>
+            <span class="btn-spinner" aria-hidden="true" hidden></span>
+          </button>
+        </form>
+        <p class="auth-switch">
+          Zaten hesabınız var mı?
+          <button class="link-btn" id="switchToLogin">Giriş Yap</button>
+        </p>
+      </div>
+
+    </div><!-- /.modal -->
+  </div><!-- /.modal-overlay -->
+
+  <!-- ============================================================
+       COİN DETAY MODAL
+  ============================================================ -->
+  <div class="modal-overlay" id="coinModalOverlay" role="dialog" aria-modal="true" aria-labelledby="coinModalTitle" hidden>
+    <div class="modal coin-modal" id="coinModal">
+
+      <button class="modal__close" id="closeCoinModal" aria-label="Modalı kapat">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+
+      <!-- Coin Başlık -->
+      <div class="coin-modal__header" id="coinModalHeader">
+        <img class="coin-modal__logo" id="coinModalLogo" src="" alt="" width="48" height="48" />
+        <div>
+          <h2 class="coin-modal__title" id="coinModalTitle">—</h2>
+          <span class="coin-modal__symbol" id="coinModalSymbol">—</span>
+          <span class="coin-modal__rank" id="coinModalRank">#—</span>
+        </div>
+        <button class="watchlist-btn-large" id="coinModalWatchlistBtn" aria-label="İzleme listesine ekle">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+        </button>
+      </div>
+
+      <!-- Fiyat -->
+      <div class="coin-modal__price-section">
+        <div class="coin-modal__price" id="coinModalPrice">—</div>
+        <div class="coin-modal__changes">
+          <span class="change-badge" id="coinModal1h">1s: —</span>
+          <span class="change-badge" id="coinModal24h">24s: —</span>
+          <span class="change-badge" id="coinModal7d">7g: —</span>
+        </div>
+      </div>
+
+      <!-- Grafik Zaman Seçici -->
+      <div class="chart-controls" role="group" aria-label="Grafik zaman aralığı">
+        <button class="chart-period" data-days="1" aria-pressed="false">1G</button>
+        <button class="chart-period active" data-days="7" aria-pressed="true">7G</button>
+        <button class="chart-period" data-days="30" aria-pressed="false">30G</button>
+        <button class="chart-period" data-days="90" aria-pressed="false">90G</button>
+        <button class="chart-period" data-days="365" aria-pressed="false">1Y</button>
+      </div>
+
+      <!-- Grafik Canvas -->
+      <div class="chart-container" role="img" aria-label="Fiyat grafiği">
+        <canvas id="priceChart" aria-hidden="true"></canvas>
+        <div class="chart-loader" id="chartLoader" aria-label="Grafik yükleniyor" hidden>
+          <div class="spinner"></div>
+        </div>
+      </div>
+
+      <!-- Detay İstatistikler -->
+      <div class="coin-stats-grid" id="coinStatsGrid" aria-label="Coin istatistikleri">
+        <div class="coin-stat">
+          <span class="coin-stat__label">Piyasa Değeri</span>
+          <span class="coin-stat__value" id="statMcap">—</span>
+        </div>
+        <div class="coin-stat">
+          <span class="coin-stat__label">24s Hacim</span>
+          <span class="coin-stat__value" id="statVol">—</span>
+        </div>
+        <div class="coin-stat">
+          <span class="coin-stat__label">Dolaşımdaki Arz</span>
+          <span class="coin-stat__value" id="statSupply">—</span>
+        </div>
+        <div class="coin-stat">
+          <span class="coin-stat__label">Maks. Arz</span>
+          <span class="coin-stat__value" id="statMaxSupply">—</span>
+        </div>
+        <div class="coin-stat">
+          <span class="coin-stat__label">24s Yüksek</span>
+          <span class="coin-stat__value positive" id="statHigh">—</span>
+        </div>
+        <div class="coin-stat">
+          <span class="coin-stat__label">24s Düşük</span>
+          <span class="coin-stat__value negative" id="statLow">—</span>
+        </div>
+        <div class="coin-stat">
+          <span class="coin-stat__label">Tüm Zamanlar Yüksek</span>
+          <span class="coin-stat__value" id="statATH">—</span>
+        </div>
+        <div class="coin-stat">
+          <span class="coin-stat__label">ATH'den Uzaklık</span>
+          <span class="coin-stat__value" id="statATHChange">—</span>
+        </div>
+      </div>
+
+    </div><!-- /.modal -->
+  </div><!-- /.modal-overlay -->
+
+  <!-- ============================================================
+       TOAST BİLDİRİM
+  ============================================================ -->
+  <div class="toast-container" id="toastContainer" aria-live="polite" aria-label="Bildirimler"></div>
+
+  <!-- Ana uygulama JS -->
+  <script src="app.js"></script>
+</body>
+</html>

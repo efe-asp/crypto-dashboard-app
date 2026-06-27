@@ -1,0 +1,19 @@
+# Bağımlılık klasörleri (Yüklenmemeli)
+node_modules/
+
+# Gizli anahtarlar ve şifreler (KESİNLİKLE YÜKLENMEMELİ)
+backend/.env
+
+# SQLite yerel veritabanı dosyaları (Yüklenmemeli)
+backend/database.sqlite
+backend/database.sqlite-journal
+backend/database.sqlite-shm
+backend/database.sqlite-wal
+
+# Log dosyaları
+*.log
+npm-debug.log*
+
+# Sistem dosyaları
+.DS_Store
+Thumbs.db
