@@ -1,1221 +1,832 @@
 /**
  * =============================================================
- * app.js — CryptoNova Vanilla JS Uygulama Motoru
+ * CryptoNova v2.0 — Ana Uygulama (app.js)
  * =============================================================
- * Modüler yapı:
- *   CONFIG         — Sabitler ve yapılandırma
- *   Utils          — Yardımcı fonksiyonlar (format, zaman vb.)
- *   ParticleSystem — Arka plan partikülleri
- *   API            — Backend proxy üzerinden tüm API çağrıları
- *   AuthManager    — JWT tabanlı kimlik doğrulama yönetimi
- *   UIManager      — DOM güncellemeleri ve render mantığı
- *   ModalManager   — Auth + Coin detay modalları
- *   SearchManager  — Coin arama ve sonuçları
- *   WatchlistManager — Watchlist CRUD operasyonları
- *   ChartManager   — Canvas ile el çizimi fiyat grafiği
- *   ToastManager   — Uygulama içi bildirimler
- *   App            — Ana orkestrasyon + başlatma
+ * Modüller:
+ *   I18n       — TR/EN dil sistemi (localStorage'a kaydedilir)
+ *   Theme      — Dark/Light tema (localStorage'a kaydedilir)
+ *   TabRouter  — 4 sekme SPA navigasyonu
+ *   API        — Merkezi fetch servisi
+ *   Markets    — Piyasa tablosu, trending, global istatistik
+ *   Trade      — Al-Sat paneli
+ *   Converter  — Kripto dönüştürücü
+ *   Wallet     — Cüzdan, yatır/çek, işlem geçmişi
+ *   Auth       — JWT tabanlı giriş/kayıt
+ *   Toast      — Bildirim sistemi
+ *   CoinModal  — Coin detay modalı + grafik
  * =============================================================
  */
 
 'use strict';
 
-// =============================================================
-// CONFIG — Merkezi yapılandırma
-// =============================================================
-const CONFIG = Object.freeze({
-  API_BASE      : 'http://localhost:5000/api',
-  TOKEN_KEY     : 'cryptonova_token',
-  USER_KEY      : 'cryptonova_user',
-  REFRESH_INTERVAL: 60_000,   // 60 saniyede bir piyasa güncelle
-  DEBOUNCE_DELAY  : 400,      // Arama debounce süresi (ms)
-  CURRENCIES      : {
-    usd: { symbol: '$',  code: 'USD', locale: 'en-US' },
-    eur: { symbol: '€',  code: 'EUR', locale: 'de-DE' },
-    try: { symbol: '₺',  code: 'TRY', locale: 'tr-TR' }
+// ============================================================
+// I18N — ÇEVIRI SİSTEMİ
+// ============================================================
+const LANGS = {
+  tr: {
+    nav_markets   : 'Piyasalar',
+    nav_trade     : 'Al-Sat',
+    nav_converter : 'Dönüştür',
+    nav_wallet    : 'Cüzdan',
+    nav_history   : 'Geçmiş',
+    history_title : 'İşlem Geçmişi',
+    history_subtitle: 'Tüm alım ve satım işlemlerinizin finansal dökümü',
+    filter_all    : 'Tümü',
+    filter_buy    : 'Sadece Alış',
+    filter_sell   : 'Sadece Satış',
+    col_asset     : 'Varlık',
+    col_type      : 'Tip',
+    col_amount    : 'Miktar',
+    col_price     : 'İşlem Fiyatı',
+    col_total     : 'Toplam Tutarı',
+    col_date      : 'Tarih',
+    history_empty_title: 'Kayıt Bulunamadı',
+    history_empty_desc: 'Henüz bir işleminiz bulunmuyor veya aradığınız kriterde sonuç yok.',
+    wallet_avg_buy: 'Ortalama Maliyet:',
+    pnl_label     : 'Kâr / Zarar:',
+
+    hero_badge    : 'Canlı Piyasa Verileri',
+    hero_title_1  : 'Kripto Piyasasını',
+    hero_title_2  : 'Gerçek Zamanlı',
+    hero_title_3  : ' Takip Et',
+    hero_subtitle : '100+ kripto paranın anlık fiyat, hacim ve piyasa verilerini takip edin.',
+
+    stat_mcap     : 'Toplam Piyasa Değeri',
+    stat_volume   : '24s Hacim',
+    stat_btc_dom  : 'BTC Dominance',
+    stat_coins    : 'Aktif Coin',
+    stat_supply   : 'Dolaşımdaki Arz',
+    stat_max_supply: 'Maks. Arz',
+    stat_high     : '24s Yüksek',
+    stat_low      : '24s Düşük',
+    stat_ath      : 'Tüm Zamanlar Yüksek',
+    stat_ath_change: "ATH'den Uzaklık",
+
+    trending_title   : 'Trend Coinler',
+    trending_subtitle: 'Son 24 saatte en çok aranan coinler',
+    market_title     : 'Piyasa Tablosu',
+    market_subtitle  : 'Piyasa değerine göre sıralanmış coinler',
+
+    th_coin   : 'Coin',
+    th_price  : 'Fiyat',
+    th_mcap   : 'Piyasa Değeri',
+    th_volume : '24s Hacim',
+    th_chart  : '7 Günlük',
+
+    btn_login    : 'Giriş Yap',
+    btn_register : 'Kayıt Ol',
+    btn_logout   : 'Çıkış Yap',
+    btn_prev     : 'Önceki',
+    btn_next     : 'Sonraki',
+    btn_buy      : 'Al',
+    btn_sell     : 'Sat',
+    btn_deposit  : 'Para Yatır',
+    btn_withdraw : 'Para Çek',
+    btn_deposit_submit  : 'Yatır',
+    btn_withdraw_submit : 'Çek',
+    btn_load_more: 'Daha Fazla Yükle',
+    btn_quick_buy : 'Hızlı Al',
+    btn_quick_sell: 'Hızlı Sat',
+    btn_buy_submit : 'Al',
+
+    trade_title    : 'Hızlı Al-Sat',
+    trade_subtitle : 'Anlık piyasa fiyatından kripto para alın veya satın',
+    trade_login_notice: 'Al-Sat yapabilmek için',
+
+    converter_title   : 'Kripto Dönüştürücü',
+    converter_subtitle: 'Anlık kurlarla kripto ve fiat para birimlerini dönüştürün',
+    market_rates      : 'Piyasa Kurları',
+    quick_convert     : 'Hızlı:',
+
+    wallet_title        : 'Cüzdanım',
+    wallet_subtitle     : 'Bakiyelerinizi yönetin, yatırın veya çekin',
+    wallet_login_notice : 'Cüzdanınıza erişmek için giriş yapmanız gerekiyor.',
+    total_portfolio     : 'Toplam Portföy Değeri',
+    my_assets           : 'Varlıklarım',
+    transaction_history : 'İşlem Geçmişi',
+    balance_login_notice: 'Bakiyenizi görmek için giriş yapın',
+    recent_trades       : 'Son İşlemler',
+    no_transactions     : 'Henüz işlem yok',
+
+    label_coin       : 'Coin Seç',
+    label_amount     : 'Miktar',
+    label_amount_usd : 'Miktar (USD)',
+    label_current_price: 'Anlık Fiyat',
+    label_from       : 'Kaynak',
+    label_to         : 'Hedef',
+    label_balance    : 'Bakiyeniz',
+    label_price      : 'Fiyat',
+    label_total      : 'Toplam',
+    label_available  : 'Kullanılabilir:',
+    label_email      : 'E-posta',
+    label_password   : 'Şifre',
+    label_username   : 'Kullanıcı Adı',
+
+    auth_title       : "CryptoNova'ya Hoş Geldiniz",
+    auth_subtitle    : 'Hesabınıza giriş yapın veya yeni hesap oluşturun',
+    auth_no_account  : 'Hesabınız yok mu?',
+    auth_have_account: 'Zaten hesabınız var mı?',
+    btn_register_submit: 'Hesap Oluştur',
+
+    loading : 'Yükleniyor...',
+    footer_powered  : 'Veriler CoinGecko API ile sağlanmaktadır.',
+    footer_updated  : ' güncellendi',
+    footer_disclaimer: 'Bu uygulama yatırım tavsiyesi vermez. Kripto piyasaları yüksek risk içerir.',
+
+    toast_buy_success  : (amount, symbol, price) => `${amount} ${symbol} başarıyla satın alındı! @ $${price}`,
+    toast_sell_success : (amount, symbol, price) => `${amount} ${symbol} başarıyla satıldı! @ $${price}`,
+    toast_deposit_ok   : (amount) => `$${amount.toLocaleString()} yatırıldı.`,
+    toast_withdraw_ok  : (amount) => `$${amount.toLocaleString()} çekildi.`,
+    toast_watchlist_add: (name) => `${name} izleme listesine eklendi!`,
+    toast_watchlist_rem: (name) => `${name} izleme listesinden çıkarıldı.`,
+    toast_login_ok     : 'Hoş geldiniz! Başarıyla giriş yaptınız.',
+    toast_logout_ok    : 'Başarıyla çıkış yaptınız.',
+    toast_register_ok  : 'Hesabınız oluşturuldu! Hoş geldiniz.',
+    toast_error        : 'Bir hata oluştu. Lütfen tekrar deneyin.',
+    toast_need_login   : 'Bu işlem için giriş yapmanız gerekiyor.',
+    err_no_price       : 'Fiyat bilgisi alınamadı.',
+    err_api            : 'Veri alınamadı. Lütfen daha sonra tekrar deneyin.',
+    page_info          : (p, t) => `Sayfa ${p} / ${t}`,
+
+    // YENİ EKLENENLER (P2P, Staking vb.)
+    btn_transfer       : 'Transfer',
+    btn_transfer_submit: 'Gönder',
+    btn_stake          : 'Varlığı Kilitle (Stake)',
+    btn_unstake        : 'Stake Boz & Faizi Al',
+    btn_export_csv     : 'CSV İndir',
+    label_receiver_email: 'Alıcı Email',
+    label_currency     : 'Varlık',
+    staking_title      : 'Staking (Kazan)',
+    staking_active_amount: 'Kilitli Miktar:',
+    staking_earned     : 'Biriken Faiz:'
+  },
+
+  en: {
+    nav_markets   : 'Markets',
+    nav_trade     : 'Trade',
+    nav_converter : 'Convert',
+    nav_wallet    : 'Wallet',
+    nav_history   : 'History',
+    history_title : 'Trade History',
+    history_subtitle: 'Financial breakdown of all your trades',
+    filter_all    : 'All',
+    filter_buy    : 'Buy Only',
+    filter_sell   : 'Sell Only',
+    col_asset     : 'Asset',
+    col_type      : 'Type',
+    col_amount    : 'Amount',
+    col_price     : 'Price',
+    col_total     : 'Total Cost',
+    col_date      : 'Date',
+    history_empty_title: 'No Records Found',
+    history_empty_desc: 'You have no transactions yet or no results for the search criteria.',
+    wallet_avg_buy: 'Avg Buy Price:',
+    pnl_label     : 'Profit / Loss:',
+
+    hero_badge    : 'Live Market Data',
+    hero_title_1  : 'Track Crypto Markets',
+    hero_title_2  : 'In Real Time',
+    hero_title_3  : '',
+    hero_subtitle : 'Follow live prices, volumes and market data for 100+ cryptocurrencies.',
+
+    stat_mcap     : 'Total Market Cap',
+    stat_volume   : '24h Volume',
+    stat_btc_dom  : 'BTC Dominance',
+    stat_coins    : 'Active Coins',
+    stat_supply   : 'Circulating Supply',
+    stat_max_supply: 'Max Supply',
+    stat_high     : '24h High',
+    stat_low      : '24h Low',
+    stat_ath      : 'All Time High',
+    stat_ath_change: 'ATH Distance',
+
+    trending_title   : 'Trending Coins',
+    trending_subtitle: 'Most searched coins in the last 24 hours',
+    market_title     : 'Market Table',
+    market_subtitle  : 'Coins sorted by market cap',
+
+    th_coin   : 'Coin',
+    th_price  : 'Price',
+    th_mcap   : 'Market Cap',
+    th_volume : '24h Volume',
+    th_chart  : '7 Day',
+
+    btn_login    : 'Login',
+    btn_register : 'Sign Up',
+    btn_logout   : 'Logout',
+    btn_prev     : 'Prev',
+    btn_next     : 'Next',
+    btn_buy      : 'Buy',
+    btn_sell     : 'Sell',
+    btn_deposit  : 'Deposit',
+    btn_withdraw : 'Withdraw',
+    btn_deposit_submit  : 'Deposit',
+    btn_withdraw_submit : 'Withdraw',
+    btn_load_more: 'Load More',
+    btn_quick_buy : 'Quick Buy',
+    btn_quick_sell: 'Quick Sell',
+    btn_buy_submit : 'Buy',
+
+    trade_title    : 'Quick Trade',
+    trade_subtitle : 'Buy or sell crypto at live market price',
+    trade_login_notice: 'Please',
+
+    converter_title   : 'Crypto Converter',
+    converter_subtitle: 'Convert crypto and fiat currencies at live rates',
+    market_rates      : 'Market Rates',
+    quick_convert     : 'Quick:',
+
+    wallet_title        : 'My Wallet',
+    wallet_subtitle     : 'Manage your balances, deposit or withdraw',
+    wallet_login_notice : 'Please log in to access your wallet.',
+    total_portfolio     : 'Total Portfolio Value',
+    my_assets           : 'My Assets',
+    transaction_history : 'Transaction History',
+    balance_login_notice: 'Login to see your balance',
+    recent_trades       : 'Recent Trades',
+    no_transactions     : 'No transactions yet',
+
+    label_coin       : 'Select Coin',
+    label_amount     : 'Amount',
+    label_amount_usd : 'Amount (USD)',
+    label_current_price: 'Current Price',
+    label_from       : 'From',
+    label_to         : 'To',
+    label_balance    : 'Your Balance',
+    label_price      : 'Price',
+    label_total      : 'Total',
+    label_available  : 'Available:',
+    label_email      : 'Email',
+    label_password   : 'Password',
+    label_username   : 'Username',
+
+    auth_title       : 'Welcome to CryptoNova',
+    auth_subtitle    : 'Login to your account or create a new one',
+    auth_no_account  : "Don't have an account?",
+    auth_have_account: 'Already have an account?',
+    btn_register_submit: 'Create Account',
+
+    loading : 'Loading...',
+    footer_powered  : 'Data provided by CoinGecko API.',
+    footer_updated  : ' updated',
+    footer_disclaimer: 'This application does not provide investment advice. Crypto markets carry high risk.',
+
+    toast_buy_success  : (amount, symbol, price) => `Bought ${amount} ${symbol} @ $${price}!`,
+    toast_sell_success : (amount, symbol, price) => `Sold ${amount} ${symbol} @ $${price}!`,
+    toast_deposit_ok   : (amount) => `$${amount.toLocaleString()} deposited.`,
+    toast_withdraw_ok  : (amount) => `$${amount.toLocaleString()} withdrawn.`,
+    toast_register_ok  : 'Account created! Welcome.',
+    toast_error        : 'An error occurred. Please try again.',
+    toast_need_login   : 'You must be logged in for this action.',
+    err_no_price       : 'Price information could not be retrieved.',
+    err_api            : 'Failed to fetch data. Please try again later.',
+    page_info          : (p, t) => `Page ${p} / ${t}`,
+
+    btn_transfer       : 'Transfer',
+    btn_transfer_submit: 'Send',
+    btn_stake          : 'Lock Asset (Stake)',
+    btn_unstake        : 'Unstake & Get Interest',
+    btn_export_csv     : 'Download CSV',
+    label_receiver_email: 'Receiver Email',
+    label_currency     : 'Asset',
+    staking_title      : 'Staking (Earn)',
+    staking_active_amount: 'Locked Amount:',
+    staking_earned     : 'Earned Interest:'
   }
-});
+};
 
-// =============================================================
-// UTILS — Yardımcı saf fonksiyonlar
-// =============================================================
-const Utils = (() => {
+// ============================================================
+// I18N ENGINE
+// ============================================================
+const I18n = (() => {
+  let currentLang = localStorage.getItem('cn_lang') || 'tr';
 
-  /**
-   * Sayıyı para birimi formatına dönüştürür.
-   * Büyük sayılar için K/M/B kısaltması kullanır (tablo için).
-   * @param {number} num
-   * @param {string} currency — 'usd' | 'eur' | 'try'
-   * @param {boolean} compact — Kısaltma kullan mı (ör: $1.2B)
-   */
-  const formatCurrency = (num, currency = 'usd', compact = false) => {
-    if (num == null || isNaN(num)) return '—';
-    const cfg = CONFIG.CURRENCIES[currency] || CONFIG.CURRENCIES.usd;
-
-    if (compact) {
-      const abs = Math.abs(num);
-      let value, suffix;
-      if      (abs >= 1e12) { value = num / 1e12; suffix = 'T'; }
-      else if (abs >= 1e9 ) { value = num / 1e9;  suffix = 'B'; }
-      else if (abs >= 1e6 ) { value = num / 1e6;  suffix = 'M'; }
-      else if (abs >= 1e3 ) { value = num / 1e3;  suffix = 'K'; }
-      else                  { value = num;         suffix = '';  }
-
-      return `${cfg.symbol}${value.toFixed(2)}${suffix}`;
-    }
-
-    // Tam format
-    const opts = {
-      style   : 'currency',
-      currency: cfg.code,
-      minimumFractionDigits: num < 1 ? 6 : num < 100 ? 4 : 2,
-      maximumFractionDigits: num < 1 ? 6 : num < 100 ? 4 : 2
-    };
-
-    try {
-      return new Intl.NumberFormat(cfg.locale, opts).format(num);
-    } catch {
-      return `${cfg.symbol}${num.toFixed(2)}`;
-    }
+  const t = (key, ...args) => {
+    const val = LANGS[currentLang]?.[key] || LANGS['tr']?.[key] || key;
+    return typeof val === 'function' ? val(...args) : val;
   };
 
-  /**
-   * Yüzde değerini renkli HTML span olarak döndürür.
-   * @param {number} pct — Yüzde değeri
-   * @returns {string} HTML string
-   */
-  const formatPercent = (pct) => {
-    if (pct == null || isNaN(pct)) return '<span class="neutral">—</span>';
-    const cls   = pct > 0 ? 'positive' : pct < 0 ? 'negative' : 'neutral';
-    const arrow = pct > 0 ? '▲' : pct < 0 ? '▼' : '–';
-    return `<span class="${cls}">${arrow} ${Math.abs(pct).toFixed(2)}%</span>`;
+  const setLang = (lang) => {
+    if (!LANGS[lang]) return;
+    currentLang = lang;
+    localStorage.setItem('cn_lang', lang);
+    applyTranslations();
   };
 
-  /**
-   * Büyük sayıyı okunabilir formata çevirir.
-   * @param {number} num
-   */
-  const formatLargeNumber = (num) => {
-    if (num == null || isNaN(num)) return '—';
-    if (num >= 1e12) return `${(num / 1e12).toFixed(2)}T`;
-    if (num >= 1e9 ) return `${(num / 1e9 ).toFixed(2)}B`;
-    if (num >= 1e6 ) return `${(num / 1e6 ).toFixed(2)}M`;
-    if (num >= 1e3 ) return `${(num / 1e3 ).toFixed(2)}K`;
-    return num.toLocaleString('tr-TR');
-  };
+  const getLang = () => currentLang;
 
-  /**
-   * Debounce: Fonksiyonun çok sık çağrılmasını önler.
-   */
-  const debounce = (fn, delay) => {
-    let timer;
-    return (...args) => {
-      clearTimeout(timer);
-      timer = setTimeout(() => fn(...args), delay);
-    };
-  };
-
-  /**
-   * Göreli zaman ifadesi (örn: "3 dakika önce")
-   */
-  const timeAgo = (date) => {
-    const seconds = Math.floor((Date.now() - new Date(date)) / 1000);
-    const intervals = [
-      [31536000, 'yıl'], [2592000, 'ay'], [86400, 'gün'],
-      [3600, 'saat'],    [60, 'dakika'],  [1, 'saniye']
-    ];
-    for (const [secs, label] of intervals) {
-      const count = Math.floor(seconds / secs);
-      if (count >= 1) return `${count} ${label} önce`;
-    }
-    return 'az önce';
-  };
-
-  /**
-   * Tarihi Türkçe formatlar.
-   */
-  const formatDate = (dateStr) => {
-    if (!dateStr) return '—';
-    return new Date(dateStr).toLocaleDateString('tr-TR', {
-      day: '2-digit', month: 'long', year: 'numeric'
+  const applyTranslations = () => {
+    document.documentElement.lang = currentLang;
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+      const key = el.dataset.i18n;
+      const val = t(key);
+      if (typeof val === 'string') el.textContent = val;
     });
+    document.getElementById('currentLangLabel').textContent = currentLang.toUpperCase();
   };
 
-  /**
-   * HTML karakterlerini escapelar (XSS koruması).
-   */
-  const escapeHtml = (str) => {
-    if (!str) return '';
-    return String(str)
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#039;');
+  return { t, setLang, getLang, applyTranslations };
+})();
+
+// ============================================================
+// THEME MANAGER
+// ============================================================
+const Theme = (() => {
+  let current = localStorage.getItem('cn_theme') || 'dark';
+
+  const apply = (theme) => {
+    current = theme;
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('cn_theme', theme);
   };
 
-  /**
-   * Sayfa yüklendiğinde son güncelleme zamanını göster.
-   */
-  const updateLastRefreshTime = () => {
-    const el = document.getElementById('lastUpdateTime');
-    if (el) el.textContent = new Date().toLocaleTimeString('tr-TR');
+  const toggle = () => apply(current === 'dark' ? 'light' : 'dark');
+  const get    = () => current;
+
+  return { apply, toggle, get };
+})();
+
+// ============================================================
+// TOAST SYSTEM
+// ============================================================
+const Toast = (() => {
+  const container = () => document.getElementById('toastContainer');
+  const ICONS = { success: '✅', error: '❌', info: 'ℹ️', warning: '⚠️' };
+
+  const show = (type, title, msg = '', duration = 4000) => {
+    const toast = document.createElement('div');
+    toast.className = `toast toast--${type}`;
+    toast.setAttribute('role', 'alert');
+    toast.innerHTML = `
+      <div class="toast__icon">${ICONS[type] || '🔔'}</div>
+      <div class="toast__body">
+        <div class="toast__title">${title}</div>
+        ${msg ? `<div class="toast__msg">${msg}</div>` : ''}
+      </div>`;
+
+    container().prepend(toast);
+
+    setTimeout(() => {
+      toast.classList.add('hiding');
+      setTimeout(() => toast.remove(), 400);
+    }, duration);
   };
 
   return {
-    formatCurrency, formatPercent, formatLargeNumber,
-    debounce, timeAgo, formatDate, escapeHtml, updateLastRefreshTime
+    success : (title, msg) => show('success', title, msg),
+    error   : (title, msg) => show('error',   title, msg),
+    info    : (title, msg) => show('info',    title, msg),
+    warning : (title, msg) => show('warning', title, msg),
   };
 })();
 
-// =============================================================
-// ParticleSystem — Arka plan partikülleri (Canvas)
-// =============================================================
-const ParticleSystem = (() => {
-  let canvas, ctx, particles = [], animId;
-  const PARTICLE_COUNT = 60;
+// ============================================================
+// API SERVICE
+// ============================================================
+const API_BASE = '/api';
 
-  const init = () => {
-    canvas = document.getElementById('particleCanvas');
-    if (!canvas) return;
-    ctx = canvas.getContext('2d');
-    resize();
-    createParticles();
-    animate();
-    window.addEventListener('resize', resize);
+const ApiService = (() => {
+  const getAuthHeader = () => {
+    const token = localStorage.getItem('cn_token');
+    return token ? { 'Authorization': `Bearer ${token}` } : {};
   };
 
-  const resize = () => {
-    canvas.width  = window.innerWidth;
-    canvas.height = window.innerHeight;
-  };
-
-  const createParticles = () => {
-    particles = [];
-    for (let i = 0; i < PARTICLE_COUNT; i++) {
-      particles.push({
-        x    : Math.random() * canvas.width,
-        y    : Math.random() * canvas.height,
-        vx   : (Math.random() - 0.5) * 0.3,
-        vy   : (Math.random() - 0.5) * 0.3,
-        size : Math.random() * 1.5 + 0.5,
-        alpha: Math.random() * 0.4 + 0.1,
-        // Rastgele renk: cyan veya purple
-        color: Math.random() > 0.5 ? '0, 245, 255' : '168, 85, 247'
-      });
-    }
-  };
-
-  const animate = () => {
-    animId = requestAnimationFrame(animate);
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    particles.forEach(p => {
-      // Hareket
-      p.x += p.vx;
-      p.y += p.vy;
-
-      // Sınır kontrolü — karşı taraftan çık
-      if (p.x < 0) p.x = canvas.width;
-      if (p.x > canvas.width) p.x = 0;
-      if (p.y < 0) p.y = canvas.height;
-      if (p.y > canvas.height) p.y = 0;
-
-      // Çiz
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-      ctx.fillStyle = `rgba(${p.color}, ${p.alpha})`;
-      ctx.fill();
+  const request = async (path, opts = {}) => {
+    const res = await fetch(`${API_BASE}${path}`, {
+      headers: {
+        'Content-Type': 'application/json',
+        ...getAuthHeader(),
+        ...(opts.headers || {})
+      },
+      ...opts
     });
-
-    // Bağlantı çizgileri (yakın partiküller arası)
-    for (let i = 0; i < particles.length; i++) {
-      for (let j = i + 1; j < particles.length; j++) {
-        const dx   = particles[i].x - particles[j].x;
-        const dy   = particles[i].y - particles[j].y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        if (dist < 100) {
-          ctx.beginPath();
-          ctx.moveTo(particles[i].x, particles[i].y);
-          ctx.lineTo(particles[j].x, particles[j].y);
-          ctx.strokeStyle = `rgba(0, 245, 255, ${0.06 * (1 - dist / 100)})`;
-          ctx.lineWidth   = 0.5;
-          ctx.stroke();
-        }
-      }
-    }
-  };
-
-  return { init };
-})();
-
-// =============================================================
-// ToastManager — Bildirim sistemi
-// =============================================================
-const ToastManager = (() => {
-  const container = () => document.getElementById('toastContainer');
-
-  const ICONS = {
-    success: '✓', error: '✕', info: 'ℹ', warning: '⚠'
-  };
-
-  /**
-   * @param {string} message  — Gösterilecek mesaj
-   * @param {'success'|'error'|'info'|'warning'} type
-   * @param {number} duration — Milisaniye cinsinden gösterim süresi
-   */
-  const show = (message, type = 'info', duration = 4000) => {
-    const toast = document.createElement('div');
-    toast.className = `toast toast--${type}`;
-    toast.setAttribute('role', 'status');
-    toast.innerHTML = `
-      <span class="toast__icon" aria-hidden="true">${ICONS[type] || 'ℹ'}</span>
-      <span class="toast__message">${Utils.escapeHtml(message)}</span>
-    `;
-
-    container().appendChild(toast);
-
-    // Bildirimi kaldır: animasyon sınıfını ekle, 420ms sonra DOM'dan sil
-    const remove = () => {
-      if (!toast.parentNode) return; // Zaten kaldırılmışsa tekrar çalıştırma
-      toast.classList.add('toast--removing');
-      // animationend güvenilmez olabileceğinden doğrudan setTimeout kullan
-      setTimeout(() => { if (toast.parentNode) toast.remove(); }, 420);
-    };
-
-    const timer = setTimeout(remove, duration);
-
-    // Tıkla — hemen kapat
-    toast.addEventListener('click', () => { clearTimeout(timer); remove(); });
-
-    return { remove };
-  };
-
-  return { show };
-})();
-
-// =============================================================
-// API — Tüm backend iletişimi
-// =============================================================
-const API = (() => {
-
-  /**
-   * Temel fetch wrapper: Token ekler, hataları işler.
-   * @param {string} endpoint — '/crypto/coins' gibi (başında slash)
-   * @param {object} options  — fetch options
-   */
-  const request = async (endpoint, options = {}) => {
-    const token = localStorage.getItem(CONFIG.TOKEN_KEY);
-
-    const headers = {
-      'Content-Type': 'application/json',
-      ...(token && { Authorization: `Bearer ${token}` }),
-      ...options.headers
-    };
-
-    const url = `${CONFIG.API_BASE}${endpoint}`;
-
-    const response = await fetch(url, { ...options, headers });
-
-    // Token süresi dolmuş
-    if (response.status === 401) {
-      const data = await response.json().catch(() => ({}));
-      // Oturumu temizle (AuthManager bunu yapar ama döngüsel bağımlılığı önlemek için)
-      localStorage.removeItem(CONFIG.TOKEN_KEY);
-      localStorage.removeItem(CONFIG.USER_KEY);
-      ToastManager.show('Oturumunuzun süresi doldu. Lütfen tekrar giriş yapın.', 'warning');
-      App.handleLogout(false); // Sunucu çağrısı yapma
-      throw new Error(data.message || 'Kimlik doğrulama hatası');
-    }
-
-    let data;
-    try {
-      data = await response.json();
-    } catch {
-      throw new Error('Sunucu geçersiz yanıt döndürdü.');
-    }
-
-    if (!response.ok) {
-      throw new Error(data.message || `HTTP Hatası: ${response.status}`);
-    }
-
+    const data = await res.json();
+    if (!res.ok) throw Object.assign(new Error(data.message || 'API Error'), { status: res.status, data });
     return data;
   };
 
-  // --- Auth ---
-  const register = (username, email, password) =>
-    request('/auth/register', {
-      method: 'POST',
-      body  : JSON.stringify({ username, email, password })
-    });
-
-  const login = (email, password) =>
-    request('/auth/login', {
-      method: 'POST',
-      body  : JSON.stringify({ email, password })
-    });
-
-  const getMe = () => request('/auth/me');
-
-  // --- Crypto ---
-  const getCoins = (page = 1, currency = 'usd') =>
-    request(`/crypto/coins?page=${page}&currency=${currency}`);
-
-  const getCoin = (id) =>
-    request(`/crypto/coin/${encodeURIComponent(id)}`);
-
-  const getCoinChart = (id, days = 7, currency = 'usd') =>
-    request(`/crypto/coin/${encodeURIComponent(id)}/chart?days=${days}&currency=${currency}`);
-
-  const searchCoins = (q) =>
-    request(`/crypto/search?q=${encodeURIComponent(q)}`);
-
-  const getTrending = () =>
-    request('/crypto/trending');
-
-  const getGlobal = () =>
-    request('/crypto/global');
-
-  // --- Watchlist ---
-  const getWatchlist = () =>
-    request('/crypto/watchlist');
-
-  const addToWatchlist = (coinId) =>
-    request(`/crypto/watchlist/${encodeURIComponent(coinId)}`, { method: 'POST' });
-
-  const removeFromWatchlist = (coinId) =>
-    request(`/crypto/watchlist/${encodeURIComponent(coinId)}`, { method: 'DELETE' });
-
   return {
-    register, login, getMe,
-    getCoins, getCoin, getCoinChart, searchCoins, getTrending, getGlobal,
-    getWatchlist, addToWatchlist, removeFromWatchlist
+    get   : (path)          => request(path),
+    post  : (path, body)    => request(path, { method: 'POST',   body: JSON.stringify(body) }),
+    delete: (path)          => request(path, { method: 'DELETE' }),
+
+    // Crypto
+    getCoins    : (currency = 'usd', page = 1) => request(`/crypto/coins?currency=${currency}&page=${page}`),
+    getCoin     : (id)         => request(`/crypto/coin/${id}`),
+    getChart    : (id, days)   => request(`/crypto/coin/${id}/chart?days=${days}`),
+    getTrending : ()           => request('/crypto/trending'),
+    getGlobal   : ()           => request('/crypto/global'),
+    searchCoins : (q)          => request(`/crypto/search?q=${encodeURIComponent(q)}`),
+    getPrices   : (ids, cur = 'usd') => request(`/crypto/prices?ids=${ids}&currency=${cur}`),
+    addWatchlist   : (id)      => request(`/crypto/watchlist/${id}`, { method: 'POST' }),
+    removeWatchlist: (id)      => request(`/crypto/watchlist/${id}`, { method: 'DELETE' }),
+    getWatchlist   : ()        => request('/crypto/watchlist'),
+
+    // Auth
+    login    : (email, password)            => request('/auth/login',    { method: 'POST', body: JSON.stringify({ email, password }) }),
+    register : (username, email, password)  => request('/auth/register', { method: 'POST', body: JSON.stringify({ username, email, password }) }),
+    me       : ()                           => request('/auth/me'),
+
+    // Wallet
+    getWallet      : ()                             => request('/wallet'),
+    deposit        : (amount)                       => request('/wallet/deposit',      { method: 'POST', body: JSON.stringify({ amount }) }),
+    withdraw       : (amount)                       => request('/wallet/withdraw',     { method: 'POST', body: JSON.stringify({ amount }) }),
+    trade          : (coinId, coinSymbol, type, amount) => request('/wallet/trade',   { method: 'POST', body: JSON.stringify({ coinId, coinSymbol, type, amount }) }),
+    getTransactions: (limit = 50, offset = 0)       => request(`/wallet/transactions?limit=${limit}&offset=${offset}`),
+    transfer       : (email, currency, amount)      => request('/wallet/transfer',     { method: 'POST', body: JSON.stringify({ email, currency, amount }) }),
+    stake          : (currency, amount)             => request('/wallet/stake',        { method: 'POST', body: JSON.stringify({ currency, amount }) }),
+    unstake        : (currency)                     => request('/wallet/unstake',      { method: 'POST', body: JSON.stringify({ currency }) }),
+    getStaking     : ()                             => request('/wallet/staking'),
   };
 })();
 
-// =============================================================
-// AuthManager — Kimlik doğrulama durumu
-// =============================================================
-const AuthManager = (() => {
-  let currentUser   = null;
-  let userWatchlist = new Set();
+// ============================================================
+// AUTH STATE
+// ============================================================
+const Auth = (() => {
+  let currentUser = null;
 
-  const getToken = () => localStorage.getItem(CONFIG.TOKEN_KEY);
-
+  const getUser  = () => currentUser;
+  const getToken = () => localStorage.getItem('cn_token');
   const isLoggedIn = () => !!getToken() && !!currentUser;
 
-  const setSession = (token, user) => {
-    localStorage.setItem(CONFIG.TOKEN_KEY, token);
-    localStorage.setItem(CONFIG.USER_KEY, JSON.stringify(user));
-    currentUser   = user;
-    userWatchlist = new Set(user.watchlist || []);
+  const setSession = (user, token) => {
+    currentUser = user;
+    localStorage.setItem('cn_token', token);
+    updateNavUI();
   };
 
   const clearSession = () => {
-    localStorage.removeItem(CONFIG.TOKEN_KEY);
-    localStorage.removeItem(CONFIG.USER_KEY);
-    currentUser   = null;
-    userWatchlist = new Set();
+    currentUser = null;
+    localStorage.removeItem('cn_token');
+    updateNavUI();
   };
 
-  const getUser = () => currentUser;
+  const updateNavUI = () => {
+    const loggedIn = isLoggedIn();
+    document.getElementById('authButtons').hidden = loggedIn;
+    document.getElementById('userMenu').hidden     = !loggedIn;
 
-  const getWatchlist = () => userWatchlist;
+    if (loggedIn && currentUser) {
+      document.getElementById('navUsername').textContent   = currentUser.username;
+      document.getElementById('userAvatar').textContent    = currentUser.username[0].toUpperCase();
+      document.getElementById('dropdownEmail').textContent = currentUser.email;
+    }
 
-  const isInWatchlist = (coinId) => userWatchlist.has(coinId);
+    // Wallet & Trade panellerini güncelle
+    TradeModule.onAuthChange();
+    WalletModule.onAuthChange();
+  };
 
-  const addToLocalWatchlist = (coinId) => userWatchlist.add(coinId);
-
-  const removeFromLocalWatchlist = (coinId) => userWatchlist.delete(coinId);
-
-  /**
-   * Sayfa yüklendiğinde kayıtlı oturumu geri yükle.
-   */
-  const restoreSession = async () => {
-    const token = getToken();
-    const savedUser = localStorage.getItem(CONFIG.USER_KEY);
-
-    if (!token || !savedUser) return false;
-
+  const tryRestoreSession = async () => {
+    if (!getToken()) return;
     try {
-      currentUser   = JSON.parse(savedUser);
-      userWatchlist = new Set(currentUser.watchlist || []);
-
-      // Token'ı sunucu tarafında doğrula
-      const response  = await API.getMe();
-      currentUser     = response.user;
-      userWatchlist   = new Set(currentUser.watchlist || []);
-      localStorage.setItem(CONFIG.USER_KEY, JSON.stringify(currentUser));
-      return true;
+      const data = await ApiService.me();
+      if (data.success && data.user) {
+        currentUser = data.user;
+        updateNavUI();
+      }
     } catch {
       clearSession();
-      return false;
     }
   };
 
-  return {
-    getToken, isLoggedIn, setSession, clearSession,
-    getUser, getWatchlist, isInWatchlist,
-    addToLocalWatchlist, removeFromLocalWatchlist,
-    restoreSession
-  };
+  return { getUser, getToken, isLoggedIn, setSession, clearSession, updateNavUI, tryRestoreSession };
 })();
 
-// =============================================================
-// ChartManager — Canvas ile fiyat grafiği
-// =============================================================
-const ChartManager = (() => {
-  let currentCoinId = null;
-  let currentDays   = 7;
-  let chartData     = null;
+// ============================================================
+// TAB ROUTER
+// ============================================================
+const TabRouter = (() => {
+  let currentTab = 'markets';
 
-  const getCanvas     = () => document.getElementById('priceChart');
-  const getLoader     = () => document.getElementById('chartLoader');
+  const navigate = (tabName) => {
+    if (currentTab === tabName) return;
+    currentTab = tabName;
 
-  /**
-   * Grafik çizimi: Canvas üzerinde SVG/kütüphane kullanmadan
-   * gradient dolgulu çizgi grafik.
-   */
-  const draw = (prices, isPositive) => {
-    const canvas = getCanvas();
-    if (!canvas) return;
-
-    const ctx    = canvas.getContext('2d');
-    const W      = canvas.parentElement.clientWidth  || 600;
-    const H      = canvas.parentElement.clientHeight || 220;
-    canvas.width  = W;
-    canvas.height = H;
-
-    if (!prices || prices.length === 0) {
-      ctx.fillStyle = 'rgba(255,255,255,0.1)';
-      ctx.font      = '14px Inter, sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText('Veri yok', W / 2, H / 2);
-      return;
-    }
-
-    const pad   = { top: 20, right: 20, bottom: 30, left: 60 };
-    const iW    = W - pad.left - pad.right;
-    const iH    = H - pad.top  - pad.bottom;
-
-    const vals  = prices.map(p => p[1]);
-    const minV  = Math.min(...vals);
-    const maxV  = Math.max(...vals);
-    const range = maxV - minV || 1;
-
-    // Koordinat dönüştürücüler
-    const xOf = (i) => pad.left + (i / (prices.length - 1)) * iW;
-    const yOf = (v) => pad.top  + iH - ((v - minV) / range) * iH;
-
-    // Ana renk
-    const lineColor = isPositive ? '#10b981' : '#ef4444';
-    const gradTop   = isPositive ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)';
-
-    ctx.clearRect(0, 0, W, H);
-
-    // --- Izgara çizgileri ---
-    ctx.setLineDash([4, 6]);
-    ctx.lineWidth   = 0.5;
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.06)';
-    const gridLines = 4;
-    for (let i = 0; i <= gridLines; i++) {
-      const y = pad.top + (iH / gridLines) * i;
-      ctx.beginPath();
-      ctx.moveTo(pad.left, y);
-      ctx.lineTo(W - pad.right, y);
-      ctx.stroke();
-
-      // Y ekseni etiketi
-      const labelVal = maxV - (range / gridLines) * i;
-      ctx.fillStyle   = 'rgba(255, 255, 255, 0.3)';
-      ctx.font        = '10px JetBrains Mono, monospace';
-      ctx.textAlign   = 'right';
-      ctx.fillText(Utils.formatCurrency(labelVal, 'usd', true), pad.left - 6, y + 3);
-    }
-    ctx.setLineDash([]);
-
-    // --- Gradient dolgu alanı ---
-    const gradient = ctx.createLinearGradient(0, pad.top, 0, H - pad.bottom);
-    gradient.addColorStop(0,   gradTop);
-    gradient.addColorStop(1,   'rgba(0, 0, 0, 0)');
-
-    ctx.beginPath();
-    prices.forEach(([ts, v], i) => {
-      const x = xOf(i), y = yOf(v);
-      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    // Panel'leri göster/gizle
+    document.querySelectorAll('.tab-panel').forEach(p => {
+      const isActive = p.id === `tab-${tabName}`;
+      p.classList.toggle('active', isActive);
+      p.hidden = !isActive;
     });
-    // Kapatma yolu (alttan)
-    ctx.lineTo(xOf(prices.length - 1), H - pad.bottom);
-    ctx.lineTo(xOf(0), H - pad.bottom);
-    ctx.closePath();
-    ctx.fillStyle = gradient;
-    ctx.fill();
 
-    // --- Ana çizgi ---
-    ctx.beginPath();
-    ctx.lineWidth   = 2.5;
-    ctx.strokeStyle = lineColor;
-    ctx.lineJoin    = 'round';
-    ctx.lineCap     = 'round';
-    prices.forEach(([ts, v], i) => {
-      const x = xOf(i), y = yOf(v);
-      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    // Butonları güncelle
+    document.querySelectorAll('.tab-btn').forEach(b => {
+      const isActive = b.dataset.tab === tabName;
+      b.classList.toggle('active', isActive);
+      b.setAttribute('aria-selected', isActive);
     });
-    ctx.stroke();
 
-    // --- Glow efekti ---
-    ctx.shadowBlur  = 12;
-    ctx.shadowColor = lineColor;
-    ctx.beginPath();
-    ctx.lineWidth   = 1.5;
-    prices.forEach(([ts, v], i) => {
-      const x = xOf(i), y = yOf(v);
-      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
-    });
-    ctx.stroke();
-    ctx.shadowBlur = 0;
-
-    // --- Son nokta ---
-    const lastX = xOf(prices.length - 1);
-    const lastY = yOf(vals[vals.length - 1]);
-    ctx.beginPath();
-    ctx.arc(lastX, lastY, 5, 0, Math.PI * 2);
-    ctx.fillStyle = lineColor;
-    ctx.shadowBlur  = 10;
-    ctx.shadowColor = lineColor;
-    ctx.fill();
-    ctx.shadowBlur = 0;
+    // Tab'a özgü veri yükleme
+    if (tabName === 'trade')     TradeModule.onTabActivate();
+    if (tabName === 'converter') ConverterModule.onTabActivate();
+    if (tabName === 'wallet')    WalletModule.onTabActivate();
+    if (tabName === 'history' && typeof HistoryModule !== 'undefined') HistoryModule.onTabActivate();
   };
-
-  const load = async (coinId, days, currency = 'usd') => {
-    currentCoinId = coinId;
-    currentDays   = days;
-
-    const loader = getLoader();
-    if (loader) loader.hidden = false;
-
-    try {
-      const response = await API.getCoinChart(coinId, days, currency);
-      chartData = response.data.prices;
-
-      // Pozitif mi negatif mi?
-      const first = chartData[0]?.[1]  || 0;
-      const last  = chartData[chartData.length - 1]?.[1] || 0;
-      draw(chartData, last >= first);
-    } catch (err) {
-      console.error('Grafik yükleme hatası:', err);
-      ToastManager.show('Grafik verisi yüklenemedi.', 'error');
-    } finally {
-      if (loader) loader.hidden = true;
-    }
-  };
-
-  /**
-   * Sparkline: Market tablosu için küçük trend grafiği
-   */
-  const drawSparkline = (canvas, prices, isPositive) => {
-    if (!canvas || !prices || prices.length < 2) return;
-    const ctx = canvas.getContext('2d');
-    const W   = canvas.width  = 80;
-    const H   = canvas.height = 36;
-
-    ctx.clearRect(0, 0, W, H);
-
-    const min   = Math.min(...prices);
-    const max   = Math.max(...prices);
-    const range = max - min || 1;
-    const xStep = W / (prices.length - 1);
-    const color = isPositive ? '#10b981' : '#ef4444';
-
-    // Gradient
-    const grad = ctx.createLinearGradient(0, 0, 0, H);
-    grad.addColorStop(0, isPositive ? 'rgba(16,185,129,0.4)' : 'rgba(239,68,68,0.4)');
-    grad.addColorStop(1, 'rgba(0,0,0,0)');
-
-    ctx.beginPath();
-    prices.forEach((p, i) => {
-      const x = i * xStep;
-      const y = H - ((p - min) / range) * (H - 4) - 2;
-      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
-    });
-    ctx.lineTo(W, H); ctx.lineTo(0, H); ctx.closePath();
-    ctx.fillStyle = grad;
-    ctx.fill();
-
-    ctx.beginPath();
-    ctx.lineWidth   = 1.5;
-    ctx.strokeStyle = color;
-    prices.forEach((p, i) => {
-      const x = i * xStep;
-      const y = H - ((p - min) / range) * (H - 4) - 2;
-      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
-    });
-    ctx.stroke();
-  };
-
-  return { draw, load, drawSparkline };
-})();
-
-// =============================================================
-// ModalManager — Modal açma/kapama/fokus yönetimi
-// =============================================================
-const ModalManager = (() => {
-  let lastFocused = null;
-
-  const open = (overlayId) => {
-    lastFocused = document.activeElement;
-    const overlay = document.getElementById(overlayId);
-    if (!overlay) return;
-    overlay.hidden = false;
-    // İlk fokuslanabilir elemana geç
-    const focusable = overlay.querySelector(
-      'button, input, select, textarea, [tabindex]:not([tabindex="-1"])'
-    );
-    if (focusable) focusable.focus();
-    document.body.style.overflow = 'hidden';
-  };
-
-  const close = (overlayId) => {
-    const overlay = document.getElementById(overlayId);
-    if (!overlay) return;
-    overlay.hidden = true;
-    document.body.style.overflow = '';
-    if (lastFocused) { lastFocused.focus(); lastFocused = null; }
-  };
-
-  const closeOnOverlayClick = (overlayId) => {
-    const overlay = document.getElementById(overlayId);
-    if (!overlay) return;
-    overlay.addEventListener('click', (e) => {
-      if (e.target === overlay) close(overlayId);
-    });
-  };
-
-  // ESC tuşu ile kapat
-  document.addEventListener('keydown', (e) => {
-    if (e.key !== 'Escape') return;
-    ['authModalOverlay', 'coinModalOverlay'].forEach(id => {
-      const el = document.getElementById(id);
-      if (el && !el.hidden) close(id);
-    });
-  });
-
-  return { open, close, closeOnOverlayClick };
-})();
-
-// =============================================================
-// SearchManager — Coin arama
-// =============================================================
-const SearchManager = (() => {
-  const debouncedSearch = Utils.debounce(performSearch, CONFIG.DEBOUNCE_DELAY);
-  let isOpen = false;
 
   const init = () => {
-    const toggle  = document.getElementById('searchToggleBtn');
-    const dropdown= document.getElementById('searchDropdown');
-    const input   = document.getElementById('searchInput');
-    const results = document.getElementById('searchResults');
-
-    if (!toggle) return;
-
-    toggle.addEventListener('click', () => {
-      isOpen = !isOpen;
-      dropdown.hidden = !isOpen;
-      toggle.setAttribute('aria-expanded', isOpen);
-      if (isOpen) { input.focus(); input.value = ''; results.innerHTML = ''; }
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => navigate(btn.dataset.tab));
     });
 
-    input?.addEventListener('input', (e) => {
-      const q = e.target.value.trim();
-      if (q.length === 0) { results.innerHTML = ''; return; }
-      if (q.length >= 1) debouncedSearch(q);
-    });
-
-    // Dışarı tıklayınca kapat
-    document.addEventListener('click', (e) => {
-      if (!document.getElementById('searchWrapper')?.contains(e.target)) {
-        dropdown.hidden = true;
-        toggle.setAttribute('aria-expanded', false);
-        isOpen = false;
-      }
-    });
+    // Başlangıçta markets tab aktif
+    document.getElementById('tab-markets').classList.add('active');
+    document.getElementById('tab-markets').hidden = false;
   };
 
-  async function performSearch(query) {
-    const results = document.getElementById('searchResults');
-    if (!results) return;
+  const getCurrent = () => currentTab;
+  const goTo = (tab) => navigate(tab);
 
-    results.innerHTML = '<li class="search-empty">Aranıyor...</li>';
+  return { init, getCurrent, goTo };
+})();
 
+// ============================================================
+// FORMAT UTILITIES
+// ============================================================
+const Fmt = {
+  price: (val, currency = 'usd', compact = false) => {
+    if (val === null || val === undefined || isNaN(val)) return '—';
+    const symbols = { usd: '$', eur: '€', try: '₺' };
+    const sym = symbols[currency] || '$';
+    if (compact && Math.abs(val) >= 1e9)  return `${sym}${(val / 1e9).toFixed(2)}B`;
+    if (compact && Math.abs(val) >= 1e6)  return `${sym}${(val / 1e6).toFixed(2)}M`;
+    if (compact && Math.abs(val) >= 1e3)  return `${sym}${(val / 1e3).toFixed(2)}K`;
+    if (Math.abs(val) < 0.000001) return `${sym}${val.toExponential(4)}`;
+    if (Math.abs(val) < 0.01)     return `${sym}${val.toFixed(8)}`;
+    if (Math.abs(val) < 1)        return `${sym}${val.toFixed(4)}`;
+    if (Math.abs(val) < 10)       return `${sym}${val.toFixed(3)}`;
+    return `${sym}${val.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  },
+
+  compact: (val, currency = 'usd') => Fmt.price(val, currency, true),
+
+  pct: (val) => {
+    if (val === null || val === undefined || isNaN(val)) return '—';
+    const sign = val >= 0 ? '+' : '';
+    return `${sign}${val.toFixed(2)}%`;
+  },
+
+  pctClass: (val) => {
+    if (!val || isNaN(val)) return 'neutral';
+    return val >= 0 ? 'positive' : 'negative';
+  },
+
+  supply: (val) => {
+    if (!val) return '∞';
+    if (val >= 1e9) return `${(val / 1e9).toFixed(2)}B`;
+    if (val >= 1e6) return `${(val / 1e6).toFixed(2)}M`;
+    if (val >= 1e3) return `${(val / 1e3).toFixed(2)}K`;
+    return val.toLocaleString();
+  },
+
+  time: (isoStr) => {
+    if (!isoStr) return '—';
     try {
-      const response = await API.searchCoins(query);
-      const coins    = response.data || [];
-
-      if (coins.length === 0) {
-        results.innerHTML = '<li class="search-empty">Sonuç bulunamadı.</li>';
-        return;
+      let dateStr = isoStr;
+      if (typeof dateStr === 'string' && !dateStr.includes('Z') && !dateStr.includes('T')) {
+        dateStr = dateStr.replace(' ', 'T') + 'Z';
       }
-
-      results.innerHTML = coins.map(coin => `
-        <li class="search-result-item" role="option" tabindex="0"
-            data-coin-id="${Utils.escapeHtml(coin.id)}"
-            aria-label="${Utils.escapeHtml(coin.name)} (${Utils.escapeHtml(coin.symbol)})">
-          <img src="${Utils.escapeHtml(coin.thumb)}" alt="${Utils.escapeHtml(coin.name)}" width="28" height="28"
-               onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22><circle cx=%2216%22 cy=%2216%22 r=%2216%22 fill=%22%23333%22/><text x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 font-size=%2214%22>₿</text></svg>'" />
-          <span class="result-name">${Utils.escapeHtml(coin.name)}</span>
-          <span class="result-symbol">${Utils.escapeHtml(coin.symbol)}</span>
-          ${coin.market_cap_rank ? `<span class="result-rank">#${coin.market_cap_rank}</span>` : ''}
-        </li>
-      `).join('');
-
-      // Sonuç tıklama
-      results.querySelectorAll('.search-result-item').forEach(item => {
-        const openModal = () => {
-          const coinId = item.dataset.coinId;
-          UIManager.openCoinDetail(coinId);
-          document.getElementById('searchDropdown').hidden = true;
-          isOpen = false;
-        };
-        item.addEventListener('click', openModal);
-        item.addEventListener('keydown', (e) => {
-          if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openModal(); }
-        });
+      return new Date(dateStr).toLocaleString(I18n.getLang() === 'tr' ? 'tr-TR' : 'en-US', {
+        month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
       });
+    } catch { return isoStr; }
+  },
 
-    } catch (err) {
-      results.innerHTML = '<li class="search-empty">Arama başarısız oldu.</li>';
-    }
+  cryptoAmount: (val, decimals = 8) => {
+    if (val === null || val === undefined || isNaN(val)) return '—';
+    if (val >= 1e6)   return val.toLocaleString('en-US', { maximumFractionDigits: 2 });
+    if (val >= 1)     return val.toLocaleString('en-US', { maximumFractionDigits: 4 });
+    return val.toFixed(decimals).replace(/\.?0+$/, '');
   }
+};
 
-  return { init };
-})();
+// ============================================================
+// SPARKLINE RENDERER (Canvas)
+// ============================================================
+function drawSparkline(canvas, data, isPositive) {
+  if (!canvas || !data || !data.length) return;
+  
+  // CoinGecko API'sinden gelebilecek null veya geçersiz verileri temizle
+  const validData = data.filter(v => typeof v === 'number' && !isNaN(v) && v !== null);
+  if (validData.length < 2) return;
 
-// =============================================================
-// WatchlistManager — Favoriler CRUD
-// =============================================================
-const WatchlistManager = (() => {
+  const ctx = canvas.getContext('2d');
+  const dpr = window.devicePixelRatio || 1;
+  
+  // Display: none durumunda offsetWidth 0 döner, fallback ver
+  const w = canvas.offsetWidth || parseInt(canvas.getAttribute('width')) || 100;
+  const h = canvas.offsetHeight || parseInt(canvas.getAttribute('height')) || 40;
 
-  /**
-   * Coin'i watchlist'e ekle veya çıkar.
-   * Optimistik UI: Önce UI'ı güncelle, sonra sunucuya gönder.
-   */
-  const toggle = async (coinId, coinName) => {
-    if (!AuthManager.isLoggedIn()) {
-      ToastManager.show('İzleme listesi için giriş yapmanız gerekiyor.', 'info');
-      ModalManager.open('authModalOverlay');
-      return;
-    }
+  canvas.width  = w * dpr;
+  canvas.height = h * dpr;
+  ctx.scale(dpr, dpr);
+  ctx.clearRect(0, 0, w, h);
 
-    const isIn = AuthManager.isInWatchlist(coinId);
+  const min = Math.min(...validData);
+  const max = Math.max(...validData);
+  const range = max - min || 1;
+  const pad = 4;
 
+  const xStep = (w - pad * 2) / (validData.length - 1);
+  const yScale = (h - pad * 2) / range;
+
+  const points = validData.map((v, i) => ({
+    x: pad + i * xStep,
+    y: h - pad - (v - min) * yScale
+  }));
+
+  // Gradient fill
+  const grad = ctx.createLinearGradient(0, 0, 0, h);
+  const color = isPositive ? '0, 212, 160' : '255, 84, 112';
+  grad.addColorStop(0, `rgba(${color}, 0.25)`);
+  grad.addColorStop(1, `rgba(${color}, 0)`);
+
+  ctx.beginPath();
+  ctx.moveTo(points[0].x, h);
+  points.forEach(p => ctx.lineTo(p.x, p.y));
+  ctx.lineTo(points[points.length - 1].x, h);
+  ctx.closePath();
+  ctx.fillStyle = grad;
+  ctx.fill();
+
+  // Line
+  ctx.beginPath();
+  ctx.moveTo(points[0].x, points[0].y);
+  points.forEach(p => ctx.lineTo(p.x, p.y));
+  ctx.strokeStyle = isPositive ? '#00d4a0' : '#ff5470';
+  ctx.lineWidth = 1.5;
+  ctx.lineJoin = 'round';
+  ctx.stroke();
+}
+
+// ============================================================
+// MARKETS MODULE
+// ============================================================
+const MarketsModule = (() => {
+  let allCoins   = [];
+  let sortedCoins = [];
+  let currentPage = 1;
+  let currency    = 'usd';
+  let sortCol     = null;
+  let sortDir     = 'desc';
+  let searchQuery = '';
+  let watchlist   = JSON.parse(localStorage.getItem('cn_watchlist') || '[]');
+
+  const COINS_PER_PAGE = 25;
+
+  // ----- Veri Çekme -----
+  const fetchMarkets = async () => {
     try {
-      if (isIn) {
-        // Çıkar
-        AuthManager.removeFromLocalWatchlist(coinId);
-        updateWatchlistButtons(coinId, false);
-        await API.removeFromWatchlist(coinId);
-        ToastManager.show(`${coinName} izleme listenizden çıkarıldı.`, 'info');
-        // Watchlist bölümünü güncelle
-        await renderWatchlist();
-      } else {
-        // Ekle
-        AuthManager.addToLocalWatchlist(coinId);
-        updateWatchlistButtons(coinId, true);
-        await API.addToWatchlist(coinId);
-        ToastManager.show(`${coinName} izleme listenize eklendi! ⭐`, 'success');
-        await renderWatchlist();
-      }
-
-      // Coin modal'ındaki butonu da güncelle
-      updateCoinModalWatchlistBtn(coinId);
-
+      const data = await ApiService.getCoins(currency, 1);
+      allCoins = data.data || [];
+      applyFilter();
+      updateLastTime();
     } catch (err) {
-      // Geri al (optimistic UI rollback)
-      if (isIn) {
-        AuthManager.addToLocalWatchlist(coinId);
-        updateWatchlistButtons(coinId, true);
-      } else {
-        AuthManager.removeFromLocalWatchlist(coinId);
-        updateWatchlistButtons(coinId, false);
-      }
-      ToastManager.show(err.message || 'İşlem gerçekleştirilemedi.', 'error');
+      console.error('Markets fetch error:', err);
+      Toast.error(I18n.t('err_api'));
     }
   };
 
-  /**
-   * Tüm watchlist düğmelerini (tablo satırları) günceller.
-   */
-  const updateWatchlistButtons = (coinId, isActive) => {
-    document.querySelectorAll(`.watchlist-btn[data-coin-id="${CSS.escape(coinId)}"]`).forEach(btn => {
-      btn.classList.toggle('active', isActive);
-      btn.setAttribute('aria-label',
-        isActive ? `${coinId} izleme listesinden çıkar` : `${coinId} izleme listesine ekle`
+  const fetchGlobal = async () => {
+    try {
+      const data = await ApiService.getGlobal();
+      if (!data.data) return;
+      const g = data.data;
+      const setV = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+
+      const mcapChange = g.market_cap_change_percentage_24h_usd;
+      setV('statMarketCapValue', Fmt.compact(g.total_market_cap?.usd, 'usd'));
+      const changeEl = document.getElementById('statMarketCapChange');
+      if (changeEl) {
+        changeEl.textContent = Fmt.pct(mcapChange);
+        changeEl.className   = 'stat-card__change ' + Fmt.pctClass(mcapChange);
+      }
+      setV('statVolumeValue',  Fmt.compact(g.total_volume?.usd, 'usd'));
+      setV('statBtcDomValue',  `${g.market_cap_percentage?.btc?.toFixed(1) || '—'}%`);
+      setV('statCoinsValue',   g.active_cryptocurrencies?.toLocaleString() || '—');
+    } catch (err) {
+      console.error('Global fetch error:', err);
+    }
+  };
+
+  const fetchTrending = async () => {
+    try {
+      const data = await ApiService.getTrending();
+      renderTrending(data.data || []);
+    } catch (err) {
+      console.error('Trending fetch error:', err);
+    }
+  };
+
+  // ----- Filtre & Sıralama -----
+  const applyFilter = () => {
+    let coins = [...allCoins];
+
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      coins = coins.filter(c =>
+        c.name.toLowerCase().includes(q) || c.symbol.toLowerCase().includes(q)
       );
-    });
-  };
-
-  const updateCoinModalWatchlistBtn = (coinId) => {
-    const btn = document.getElementById('coinModalWatchlistBtn');
-    if (!btn || btn.dataset.coinId !== coinId) return;
-    const isActive = AuthManager.isInWatchlist(coinId);
-    btn.classList.toggle('active', isActive);
-    btn.setAttribute('aria-label',
-      isActive ? 'İzleme listesinden çıkar' : 'İzleme listesine ekle'
-    );
-  };
-
-  /**
-   * Watchlist bölümünü render et.
-   */
-  const renderWatchlist = async () => {
-    const section = document.getElementById('watchlistSection');
-    const grid    = document.getElementById('watchlistGrid');
-    const empty   = document.getElementById('watchlistEmpty');
-
-    if (!AuthManager.isLoggedIn()) {
-      if (section) section.hidden = true;
-      return;
     }
 
-    if (section) section.hidden = false;
-
-    if (AuthManager.getWatchlist().size === 0) {
-      grid.innerHTML  = '';
-      empty.hidden = false;
-      return;
-    }
-
-    empty.hidden = true;
-
-    try {
-      const response = await API.getWatchlist();
-      const coins    = response.data || [];
-
-      if (coins.length === 0) {
-        grid.innerHTML = '';
-        empty.hidden   = false;
-        return;
-      }
-
-      const currentCurrency = App.getCurrentCurrency();
-
-      grid.innerHTML = coins.map(coin => {
-        const change24h = coin.price_change_percentage_24h_in_currency
-          ?? coin.price_change_percentage_24h ?? 0;
-        const isPositive = change24h >= 0;
-
-        return `
-          <div class="watchlist-coin-card" role="listitem"
-               data-coin-id="${Utils.escapeHtml(coin.id)}"
-               tabindex="0"
-               aria-label="${Utils.escapeHtml(coin.name)} detayları">
-            <div class="wl-card__header">
-              <div class="wl-card__coin">
-                <img src="${Utils.escapeHtml(coin.image)}" alt="${Utils.escapeHtml(coin.name)}"
-                     width="40" height="40"
-                     onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 40 40%22><circle cx=%2220%22 cy=%2220%22 r=%2220%22 fill=%22%23333%22/><text x=%2250%25%22 y=%2255%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 fill=%22white%22 font-size=%2218%22>₿</text></svg>'" />
-                <div>
-                  <div class="wl-card__name">${Utils.escapeHtml(coin.name)}</div>
-                  <div class="wl-card__symbol">${Utils.escapeHtml(coin.symbol)}</div>
-                </div>
-              </div>
-              <button class="wl-card__remove" data-coin-id="${Utils.escapeHtml(coin.id)}"
-                      data-coin-name="${Utils.escapeHtml(coin.name)}"
-                      aria-label="${Utils.escapeHtml(coin.name)} izleme listesinden çıkar"
-                      title="Listeden çıkar">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-              </button>
-            </div>
-            <div class="wl-card__price">
-              ${Utils.formatCurrency(coin.current_price, currentCurrency)}
-            </div>
-            <div class="wl-card__change ${isPositive ? 'positive' : 'negative'}">
-              ${isPositive ? '▲' : '▼'} ${Math.abs(change24h).toFixed(2)}%
-              <span style="color:var(--text-muted);font-weight:400;margin-left:4px;font-size:11px;">24s</span>
-            </div>
-            <div class="wl-card__sparkline">
-              <canvas class="wl-sparkline-canvas" data-coin-id="${Utils.escapeHtml(coin.id)}"
-                      width="100%" height="40"
-                      aria-hidden="true"></canvas>
-            </div>
-          </div>
-        `;
-      }).join('');
-
-      // Sparkline'ları çiz
-      grid.querySelectorAll('.wl-sparkline-canvas').forEach(canvas => {
-        const coinId   = canvas.dataset.coinId;
-        const coinData = coins.find(c => c.id === coinId);
-        if (coinData?.sparkline_in_7d?.price) {
-          const prices    = coinData.sparkline_in_7d.price;
-          const change    = coinData.price_change_percentage_7d_in_currency ?? 0;
-          ChartManager.drawSparkline(canvas, prices, change >= 0);
+    if (sortCol) {
+      coins.sort((a, b) => {
+        let av, bv;
+        switch (sortCol) {
+          case 'price': av = a.current_price;                         bv = b.current_price; break;
+          case '1h'   : av = a.price_change_percentage_1h_in_currency; bv = b.price_change_percentage_1h_in_currency; break;
+          case '24h'  : av = a.price_change_percentage_24h_in_currency; bv = b.price_change_percentage_24h_in_currency; break;
+          case '7d'   : av = a.price_change_percentage_7d_in_currency; bv = b.price_change_percentage_7d_in_currency; break;
+          case 'mcap' : av = a.market_cap;                            bv = b.market_cap; break;
+          default     : av = a.market_cap_rank;                       bv = b.market_cap_rank;
         }
+        av = av ?? 0; bv = bv ?? 0;
+        return sortDir === 'asc' ? av - bv : bv - av;
       });
-
-      // Kart tıklama — coin detay
-      grid.querySelectorAll('.watchlist-coin-card').forEach(card => {
-        card.addEventListener('click', (e) => {
-          // Remove butonuna tıklandıysa kart tıklamasını engelle
-          if (e.target.closest('.wl-card__remove')) return;
-          UIManager.openCoinDetail(card.dataset.coinId);
-        });
-        card.addEventListener('keydown', (e) => {
-          if (e.key === 'Enter' && !e.target.closest('.wl-card__remove')) {
-            UIManager.openCoinDetail(card.dataset.coinId);
-          }
-        });
-      });
-
-      // Çıkarma butonları
-      grid.querySelectorAll('.wl-card__remove').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-          e.stopPropagation();
-          toggle(btn.dataset.coinId, btn.dataset.coinName);
-        });
-      });
-
-    } catch (err) {
-      console.error('Watchlist render hatası:', err);
-      grid.innerHTML = `<p style="color:var(--text-muted);padding:var(--space-4);">İzleme listesi yüklenemedi.</p>`;
     }
+
+    sortedCoins = coins;
+    currentPage = 1;
+    renderTable();
+    renderPagination();
   };
 
-  return { toggle, renderWatchlist, updateWatchlistButtons };
-})();
-
-// =============================================================
-// UIManager — DOM render + orchestration
-// =============================================================
-const UIManager = (() => {
-  let currentPage     = 1;
-  let currentCurrency = 'usd';
-  let allCoins        = [];
-  let sortKey         = null;
-  let sortDir         = 'desc'; // 'asc' | 'desc'
-
-  // ---- Küresel piyasa istatistikleri (Hero bölümü) ----
-  const renderGlobalStats = async () => {
-    try {
-      const response = await API.getGlobal();
-      const data     = response.data;
-
-      const mcap      = data.total_market_cap?.usd;
-      const vol       = data.total_volume?.usd;
-      const btcDom    = data.market_cap_percentage?.btc;
-      const numCoins  = data.active_cryptocurrencies;
-      const mcapChange= data.market_cap_change_percentage_24h_usd;
-
-      const setVal = (id, html) => {
-        const el = document.getElementById(id);
-        if (el) el.innerHTML = html;
-      };
-
-      setVal('statMarketCapValue',  Utils.formatCurrency(mcap, 'usd', true));
-      setVal('statVolumeValue',     Utils.formatCurrency(vol,  'usd', true));
-      setVal('statBtcDomValue',     btcDom ? `${btcDom.toFixed(1)}%` : '—');
-      setVal('statCoinsValue',      numCoins ? numCoins.toLocaleString('tr-TR') : '—');
-
-      if (mcapChange != null) {
-        const el  = document.getElementById('statMarketCapChange');
-        const dir = mcapChange >= 0 ? '▲' : '▼';
-        if (el) {
-          el.textContent = `${dir} ${Math.abs(mcapChange).toFixed(2)}% 24s`;
-          el.className   = `stat-card__change ${mcapChange >= 0 ? 'positive' : 'negative'}`;
-        }
-      }
-
-    } catch (err) {
-      console.error('Global istatistik hatası:', err);
-    }
-  };
-
-  // ---- Ticker bant (navbar) ----
-  const renderTicker = (coins) => {
-    const inner = document.getElementById('tickerInner');
-    if (!inner || !coins?.length) return;
-
-    // İlk 15 coini al, sonra tekrar et (sonsuz kayma için)
-    const items = [...coins.slice(0, 15), ...coins.slice(0, 15)];
-    inner.innerHTML = items.map(c => {
-      const change = c.price_change_percentage_24h ?? 0;
-      const cls    = change >= 0 ? 'positive' : 'negative';
-      return `
-        <span class="ticker-item">
-          <span class="ticker-name">${Utils.escapeHtml(c.symbol?.toUpperCase())}</span>
-          <span class="ticker-price">${Utils.formatCurrency(c.current_price, 'usd')}</span>
-          <span class="ticker-change ${cls}">${change >= 0 ? '+' : ''}${change.toFixed(2)}%</span>
-        </span>
-      `;
-    }).join('<span style="color:var(--color-border);margin:0 8px;">•</span>');
-  };
-
-  // ---- Trend coinler ----
-  const renderTrending = async () => {
-    const grid = document.getElementById('trendingGrid');
-    if (!grid) return;
-
-    try {
-      const response = await API.getTrending();
-      const coins    = response.data || [];
-
-      grid.innerHTML = coins.map((coin, idx) => `
-        <div class="trending-card" role="listitem" tabindex="0"
-             data-coin-id="${Utils.escapeHtml(coin.id)}"
-             aria-label="${Utils.escapeHtml(coin.name)} trend coin">
-          <img src="${Utils.escapeHtml(coin.thumb)}" alt="${Utils.escapeHtml(coin.name)}"
-               width="32" height="32"
-               onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22><circle cx=%2216%22 cy=%2216%22 r=%2216%22 fill=%22%23333%22/><text x=%2250%25%22 y=%2255%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 fill=%22white%22 font-size=%2214%22>₿</text></svg>'" />
-          <div class="trending-card__info">
-            <div class="trending-card__name">${Utils.escapeHtml(coin.name)}</div>
-            <div class="trending-card__symbol">${Utils.escapeHtml(coin.symbol)}</div>
-          </div>
-          <span class="trending-card__rank">#${idx + 1}</span>
-        </div>
-      `).join('');
-
-      // Tıklama
-      grid.querySelectorAll('.trending-card').forEach(card => {
-        const openDetail = () => openCoinDetail(card.dataset.coinId);
-        card.addEventListener('click', openDetail);
-        card.addEventListener('keydown', (e) => {
-          if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openDetail(); }
-        });
-      });
-
-    } catch (err) {
-      console.error('Trending render hatası:', err);
-      grid.innerHTML = `<p style="color:var(--text-muted);grid-column:1/-1;text-align:center;">Trend verisi yüklenemedi.</p>`;
-    }
-  };
-
-  // ---- Market Tablosu ----
-  const renderMarketTable = async (page = 1, currency = 'usd') => {
-    currentPage     = page;
-    currentCurrency = currency;
-
-    const tbody   = document.getElementById('marketTableBody');
-    const pageInfo= document.getElementById('pageInfo');
-    const prevBtn = document.getElementById('prevPage');
-    const nextBtn = document.getElementById('nextPage');
-
-    if (!tbody) return;
-
-    // Skeleton göster
-    tbody.innerHTML = Array(8).fill(`
-      <tr class="skeleton-row" aria-hidden="true">
-        <td colspan="10"><div class="skeleton-line"></div></td>
-      </tr>
-    `).join('');
-
-    try {
-      const response = await API.getCoins(page, currency);
-      allCoins       = response.data || [];
-
-      // Sayfalama
-      if (pageInfo) pageInfo.textContent = `Sayfa ${page}`;
-      if (prevBtn)  prevBtn.disabled     = page <= 1;
-      if (nextBtn)  nextBtn.disabled     = allCoins.length < 50;
-
-      renderTableRows(allCoins, currency);
-
-      // Ticker'ı güncelle (ilk sayfada)
-      if (page === 1) renderTicker(allCoins);
-
-      Utils.updateLastRefreshTime();
-
-    } catch (err) {
-      console.error('Market tablosu hatası:', err);
-      tbody.innerHTML = `
-        <tr>
-          <td colspan="10" style="text-align:center;padding:var(--space-8);color:var(--text-muted);">
-            Piyasa verileri yüklenemedi. Sunucunun çalıştığından emin olun.
-          </td>
-        </tr>
-      `;
-    }
-  };
-
-  const renderTableRows = (coins, currency = currentCurrency) => {
+  // ----- Render: Tablo -----
+  const renderTable = () => {
     const tbody = document.getElementById('marketTableBody');
     if (!tbody) return;
 
-    const userWl = AuthManager.getWatchlist();
+    const start = (currentPage - 1) * COINS_PER_PAGE;
+    const coins = sortedCoins.slice(start, start + COINS_PER_PAGE);
 
-    tbody.innerHTML = coins.map(coin => {
-      const change1h  = coin.price_change_percentage_1h_in_currency  ?? null;
-      const change24h = coin.price_change_percentage_24h_in_currency ?? coin.price_change_percentage_24h ?? null;
-      const change7d  = coin.price_change_percentage_7d_in_currency  ?? null;
-      const isWl      = userWl.has(coin.id);
+    if (!coins.length) {
+      tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;padding:40px;color:var(--color-text-muted)">Sonuç bulunamadı.</td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = coins.map((c, idx) => {
+      const ch1h  = c.price_change_percentage_1h_in_currency;
+      const ch24h = c.price_change_percentage_24h_in_currency;
+      const ch7d  = c.price_change_percentage_7d_in_currency;
+      const isFav = watchlist.includes(c.id);
 
       return `
-        <tr data-coin-id="${Utils.escapeHtml(coin.id)}" tabindex="0"
-            aria-label="${Utils.escapeHtml(coin.name)} fiyat satırı">
-          <td class="col-rank">${coin.market_cap_rank ?? '—'}</td>
-          <td class="col-coin">
-            <div class="coin-cell">
-              <img src="${Utils.escapeHtml(coin.image)}" alt="${Utils.escapeHtml(coin.name)}"
-                   width="32" height="32"
-                   onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22><circle cx=%2216%22 cy=%2216%22 r=%2216%22 fill=%22%23333%22/><text x=%2250%25%22 y=%2255%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 fill=%22white%22 font-size=%2212%22>₿</text></svg>'" />
+        <tr data-id="${c.id}" data-name="${c.name}" data-symbol="${c.symbol}" role="row">
+          <td class="td-rank col-rank">${c.market_cap_rank || start + idx + 1}</td>
+          <td>
+            <div class="td-coin">
+              ${c.image
+                ? `<img class="coin-logo" src="${c.image}" alt="${c.name}" width="32" height="32" loading="lazy" />`
+                : `<div class="coin-logo-placeholder">${c.symbol[0]}</div>`
+              }
               <div>
-                <span class="coin-cell__name">${Utils.escapeHtml(coin.name)}</span>
-                <span class="coin-cell__symbol">${Utils.escapeHtml(coin.symbol?.toUpperCase())}</span>
+                <div class="coin-name">${c.name}</div>
+                <div class="coin-symbol">${c.symbol}</div>
               </div>
             </div>
           </td>
-          <td class="col-price">${Utils.formatCurrency(coin.current_price, currency)}</td>
-          <td class="col-1h">${Utils.formatPercent(change1h)}</td>
-          <td class="col-24h">${Utils.formatPercent(change24h)}</td>
-          <td class="col-7d">${Utils.formatPercent(change7d)}</td>
-          <td class="col-mcap">${Utils.formatCurrency(coin.market_cap, currency, true)}</td>
-          <td class="col-volume">${Utils.formatCurrency(coin.total_volume, currency, true)}</td>
-          <td class="col-spark">
-            <canvas class="sparkline-canvas"
-                    width="80" height="36"
-                    aria-hidden="true"></canvas>
+          <td class="td-price">${Fmt.price(c.current_price, currency)}</td>
+          <td class="td-right">
+            <span class="change-pill ${Fmt.pctClass(ch1h)}">${Fmt.pct(ch1h)}</span>
           </td>
-          <td class="col-action">
-            <button class="watchlist-btn ${isWl ? 'active' : ''}"
-                    data-coin-id="${Utils.escapeHtml(coin.id)}"
-                    data-coin-name="${Utils.escapeHtml(coin.name)}"
-                    aria-label="${isWl ? coin.name + ' izleme listesinden çıkar' : coin.name + ' izleme listesine ekle'}"
-                    title="${isWl ? 'Listeden çıkar' : 'Listeye ekle'}">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="${isWl ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2">
+          <td class="td-right">
+            <span class="change-pill ${Fmt.pctClass(ch24h)}">${Fmt.pct(ch24h)}</span>
+          </td>
+          <td class="td-right">
+            <span class="change-pill ${Fmt.pctClass(ch7d)}">${Fmt.pct(ch7d)}</span>
+          </td>
+          <td class="td-mcap">${Fmt.compact(c.market_cap, currency)}</td>
+          <td class="td-volume">${Fmt.compact(c.total_volume, currency)}</td>
+          <td>
+            <canvas class="sparkline-canvas" data-sparkline="${start + idx}" width="100" height="40"></canvas>
+          </td>
+          <td style="text-align:center">
+            <button class="watchlist-btn ${isFav ? 'active' : ''}" data-coin="${c.id}" data-name="${c.name}" aria-label="Favorilere ekle" aria-pressed="${isFav}">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="${isFav ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2">
                 <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
               </svg>
             </button>
           </td>
-        </tr>
-      `;
+        </tr>`;
     }).join('');
 
-    // Sparkline'ları çiz — veriyi doğrudan coin dizisinden al (data attribute parse sorunu yok)
-    requestAnimationFrame(() => {
-      coins.forEach(coin => {
-        const row = tbody.querySelector(`tr[data-coin-id="${CSS.escape(coin.id)}"]`);
-        if (!row) return;
-        const canvas = row.querySelector('.sparkline-canvas');
-        if (!canvas) return;
-        const prices = coin.sparkline_in_7d?.price;
-        if (!prices || prices.length < 2) return;
-        const change  = coin.price_change_percentage_7d_in_currency
-                     ?? coin.price_change_percentage_24h
-                     ?? 0;
-        ChartManager.drawSparkline(canvas, prices, change >= 0);
+    // Sparkline'ları çiz
+    setTimeout(() => {
+      coins.forEach((c, idx) => {
+        const canvas = tbody.querySelector(`[data-sparkline="${start + idx}"]`);
+        if (canvas && c.sparkline_in_7d?.price) {
+          const isPos = (c.price_change_percentage_7d_in_currency || 0) >= 0;
+          drawSparkline(canvas, c.sparkline_in_7d.price, isPos);
+        }
       });
-    });
+    }, 50);
 
-    // Satır tıklama — coin detay
-    tbody.querySelectorAll('tr[data-coin-id]').forEach(row => {
+    // Satır tıklama → Coin Modal
+    tbody.querySelectorAll('tr[data-id]').forEach(row => {
       row.addEventListener('click', (e) => {
         if (e.target.closest('.watchlist-btn')) return;
-        openCoinDetail(row.dataset.coinId);
-      });
-      row.addEventListener('keydown', (e) => {
-        if ((e.key === 'Enter' || e.key === ' ') && !e.target.closest('.watchlist-btn')) {
-          e.preventDefault();
-          openCoinDetail(row.dataset.coinId);
-        }
+        CoinModal.open(row.dataset.id, allCoins.find(c => c.id === row.dataset.id));
       });
     });
 
@@ -1223,585 +834,1660 @@ const UIManager = (() => {
     tbody.querySelectorAll('.watchlist-btn').forEach(btn => {
       btn.addEventListener('click', (e) => {
         e.stopPropagation();
-        WatchlistManager.toggle(btn.dataset.coinId, btn.dataset.coinName);
+        toggleWatchlist(btn.dataset.coin, btn.dataset.name, btn);
       });
     });
   };
 
-  // ---- Coin Detay Modal ----
-  const openCoinDetail = async (coinId) => {
-    // Modal'ı aç, yükleniyor durumunu göster
-    ModalManager.open('coinModalOverlay');
+  // ----- Render: Pagination -----
+  const renderPagination = () => {
+    const totalPages = Math.max(1, Math.ceil(sortedCoins.length / COINS_PER_PAGE));
+    document.getElementById('pageInfo').textContent = I18n.t('page_info', currentPage, totalPages);
+    document.getElementById('prevPage').disabled = currentPage <= 1;
+    document.getElementById('nextPage').disabled = currentPage >= totalPages;
+  };
 
-    // Reset
-    const setEl = (id, text) => { const el = document.getElementById(id); if(el) el.textContent = text; };
-    setEl('coinModalTitle',  '—');
-    setEl('coinModalSymbol', '—');
-    setEl('coinModalRank',   '#—');
-    setEl('coinModalPrice',  '—');
-    document.getElementById('coinModalLogo')?.setAttribute('src', '');
-    document.getElementById('chartLoader')?.toggleAttribute('hidden', false);
+  // ----- Render: Trending -----
+  const renderTrending = (coins) => {
+    const grid = document.getElementById('trendingGrid');
+    if (!grid || !coins.length) return;
 
-    // Grafik period resetle
-    document.querySelectorAll('.chart-period').forEach(btn => {
-      btn.classList.toggle('active', btn.dataset.days === '7');
-    });
+    grid.innerHTML = coins.slice(0, 7).map(c => `
+      <div class="trending-card" data-id="${c.id}" role="listitem" tabindex="0">
+        <div class="trending-card__img-wrap">
+          ${c.thumb ? `<img src="${c.thumb}" alt="${c.name}" width="32" height="32" loading="lazy">` : ''}
+          <span class="trending-card__rank">#${c.score + 1}</span>
+        </div>
+        <div class="trending-card__name">${c.name}</div>
+        <div class="trending-card__symbol">${c.symbol?.toUpperCase()}</div>
+        <div class="trending-card__price">${c.data?.price ? Fmt.price(parseFloat(c.data.price)) : ''}</div>
+      </div>`).join('');
 
-    try {
-      const response = await API.getCoin(coinId);
-      const coin     = response.data;
-
-      // Logo
-      const logo = document.getElementById('coinModalLogo');
-      if (logo) {
-        logo.src = coin.image?.large || coin.image?.small || '';
-        logo.alt = coin.name || '';
-      }
-
-      // Başlık bilgileri
-      setEl('coinModalTitle',  coin.name);
-      setEl('coinModalSymbol', coin.symbol?.toUpperCase());
-      setEl('coinModalRank',   `#${coin.market_cap_rank ?? '—'}`);
-
-      // Fiyat
-      const price = coin.market_data?.current_price?.usd;
-      setEl('coinModalPrice', Utils.formatCurrency(price, 'usd'));
-
-      // Yüzde değişimler
-      const mkt = coin.market_data || {};
-      const setBadge = (id, value) => {
-        const el = document.getElementById(id);
-        if (!el) return;
-        if (value == null) { el.textContent = '—'; el.className = 'change-badge neutral'; return; }
-        const sign = value >= 0 ? '+' : '';
-        el.textContent = `${id.replace('coinModal', '')} ${sign}${value.toFixed(2)}%`;
-        el.className = `change-badge ${value >= 0 ? 'positive' : 'negative'}`;
+    grid.querySelectorAll('.trending-card').forEach(card => {
+      const handler = () => {
+        const coin = allCoins.find(c => c.id === card.dataset.id);
+        CoinModal.open(card.dataset.id, coin || null);
       };
+      card.addEventListener('click', handler);
+      card.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') handler(); });
+    });
+  };
 
-      document.getElementById('coinModal1h').textContent  = '';
-      document.getElementById('coinModal24h').textContent = '';
-      document.getElementById('coinModal7d').textContent  = '';
+  // ----- Ticker -----
+  const buildTicker = () => {
+    if (!allCoins.length) return;
+    const inner = document.getElementById('tickerInner');
+    if (!inner) return;
 
-      setBadge('coinModal1h',  mkt.price_change_percentage_1h_in_currency?.usd);
-      setBadge('coinModal24h', mkt.price_change_percentage_24h_in_currency?.usd ?? mkt.price_change_percentage_24h);
-      setBadge('coinModal7d',  mkt.price_change_percentage_7d_in_currency?.usd);
+    const top20 = allCoins.slice(0, 20);
+    // Tekrar ettirerek sonsuz scroll efekti
+    const items = [...top20, ...top20].map(c => {
+      const ch = c.price_change_percentage_24h_in_currency;
+      const cls = Fmt.pctClass(ch);
+      return `<span class="ticker-item">
+        <strong>${c.symbol?.toUpperCase()}</strong>
+        ${Fmt.price(c.current_price, currency)}
+        <span class="${cls}">${Fmt.pct(ch)}</span>
+      </span>`;
+    }).join('');
 
-      // İstatistikler
-      setEl('statMcap',      Utils.formatCurrency(mkt.market_cap?.usd, 'usd', true));
-      setEl('statVol',       Utils.formatCurrency(mkt.total_volume?.usd, 'usd', true));
-      setEl('statSupply',    mkt.circulating_supply ? Utils.formatLargeNumber(mkt.circulating_supply) + ` ${coin.symbol?.toUpperCase()}` : '—');
-      setEl('statMaxSupply', mkt.max_supply ? Utils.formatLargeNumber(mkt.max_supply) + ` ${coin.symbol?.toUpperCase()}` : '∞');
-      setEl('statHigh',      Utils.formatCurrency(mkt.high_24h?.usd, 'usd'));
-      setEl('statLow',       Utils.formatCurrency(mkt.low_24h?.usd, 'usd'));
-      setEl('statATH',       Utils.formatCurrency(mkt.ath?.usd, 'usd'));
+    inner.innerHTML = items;
+  };
 
-      const athChange = mkt.ath_change_percentage?.usd;
-      const athEl     = document.getElementById('statATHChange');
-      if (athEl) {
-        athEl.textContent = athChange != null ? `${athChange.toFixed(1)}%` : '—';
-        athEl.className   = `coin-stat__value ${athChange != null ? (athChange >= 0 ? 'positive' : 'negative') : ''}`;
+  // ----- Watchlist -----
+  const toggleWatchlist = async (coinId, coinName, btn) => {
+    if (!Auth.isLoggedIn()) {
+      Toast.warning(I18n.t('toast_need_login'));
+      AuthModal.open();
+      return;
+    }
+
+    const isFav = watchlist.includes(coinId);
+    try {
+      if (isFav) {
+        await ApiService.removeWatchlist(coinId);
+        watchlist = watchlist.filter(id => id !== coinId);
+        Toast.info(I18n.t('toast_watchlist_rem', coinName));
+      } else {
+        await ApiService.addWatchlist(coinId);
+        watchlist = [...watchlist, coinId];
+        Toast.success(I18n.t('toast_watchlist_add', coinName));
       }
-
-      // Watchlist butonu
-      const wlBtn = document.getElementById('coinModalWatchlistBtn');
-      if (wlBtn) {
-        wlBtn.dataset.coinId   = coinId;
-        wlBtn.dataset.coinName = coin.name;
-        const isWl = AuthManager.isInWatchlist(coinId);
-        wlBtn.classList.toggle('active', isWl);
-        wlBtn.setAttribute('aria-label', isWl ? 'İzleme listesinden çıkar' : 'İzleme listesine ekle');
-      }
-
-      // Grafiği yükle
-      await ChartManager.load(coinId, 7, 'usd');
-
+      localStorage.setItem('cn_watchlist', JSON.stringify(watchlist));
+      btn.classList.toggle('active', !isFav);
+      btn.setAttribute('aria-pressed', !isFav);
+      const svg = btn.querySelector('svg');
+      if (svg) svg.setAttribute('fill', !isFav ? 'currentColor' : 'none');
     } catch (err) {
-      console.error('Coin detay hatası:', err);
-      ToastManager.show('Coin bilgisi yüklenemedi.', 'error');
-      ModalManager.close('coinModalOverlay');
+      Toast.error(err.message || I18n.t('toast_error'));
     }
   };
 
-  // ---- Auth UI güncellemeleri ----
-  const updateAuthUI = () => {
-    const isLoggedIn = AuthManager.isLoggedIn();
-    const user       = AuthManager.getUser();
+  const isInWatchlist = (coinId) => watchlist.includes(coinId);
 
-    document.getElementById('authButtons')?.toggleAttribute('hidden', isLoggedIn);
-    document.getElementById('userMenu')?.toggleAttribute('hidden', !isLoggedIn);
-
-    if (isLoggedIn && user) {
-      const initial = (user.username || user.email || 'U')[0].toUpperCase();
-      const avatar  = document.getElementById('userAvatar');
-      if (avatar) avatar.textContent = initial;
-
-      const navUsername = document.getElementById('navUsername');
-      if (navUsername) navUsername.textContent = user.username || 'Kullanıcı';
-
-      const dropEmail = document.getElementById('dropdownEmail');
-      if (dropEmail) dropEmail.textContent = user.email || '';
-    }
-  };
-
-  // ---- Tablo sıralama ----
-  const sortTable = (key) => {
-    if (sortKey === key) {
-      sortDir = sortDir === 'asc' ? 'desc' : 'asc';
-    } else {
-      sortKey = key;
-      sortDir = key === 'price' || key === 'mcap' ? 'desc' : 'asc';
-    }
-
-    const sorted = [...allCoins].sort((a, b) => {
-      let valA, valB;
-      switch (key) {
-        case 'price': valA = a.current_price;                            valB = b.current_price;                            break;
-        case '1h':    valA = a.price_change_percentage_1h_in_currency;   valB = b.price_change_percentage_1h_in_currency;   break;
-        case '24h':   valA = a.price_change_percentage_24h;              valB = b.price_change_percentage_24h;              break;
-        case '7d':    valA = a.price_change_percentage_7d_in_currency;   valB = b.price_change_percentage_7d_in_currency;   break;
-        case 'mcap':  valA = a.market_cap;                               valB = b.market_cap;                               break;
-        default: return 0;
-      }
-      if (valA == null) return 1;
-      if (valB == null) return -1;
-      return sortDir === 'asc' ? valA - valB : valB - valA;
+  // ----- Event Listeners -----
+  const initEvents = () => {
+    // Sıralama
+    document.querySelectorAll('.sortable').forEach(th => {
+      const handler = () => {
+        const col = th.dataset.sort;
+        if (sortCol === col) {
+          sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+        } else {
+          sortCol = col;
+          sortDir = 'desc';
+        }
+        document.querySelectorAll('.sortable').forEach(t => t.setAttribute('aria-sort', 'none'));
+        th.setAttribute('aria-sort', sortDir === 'asc' ? 'ascending' : 'descending');
+        applyFilter();
+      };
+      th.addEventListener('click', handler);
+      th.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') handler(); });
     });
 
-    // Başlık aria-sort güncelle
-    document.querySelectorAll('.market-table th.sortable').forEach(th => {
-      th.classList.remove('sorted-asc', 'sorted-desc');
-      th.setAttribute('aria-sort', 'none');
+    // Para birimi
+    document.querySelectorAll('.currency-tab').forEach(btn => {
+      btn.addEventListener('click', () => {
+        currency = btn.dataset.currency;
+        document.querySelectorAll('.currency-tab').forEach(b => {
+          b.classList.toggle('active', b === btn);
+          b.setAttribute('aria-pressed', b === btn);
+        });
+        fetchMarkets();
+      });
     });
-    const activeTh = document.querySelector(`.market-table th[data-sort="${key}"]`);
-    if (activeTh) {
-      activeTh.classList.add(sortDir === 'asc' ? 'sorted-asc' : 'sorted-desc');
-      activeTh.setAttribute('aria-sort', sortDir === 'asc' ? 'ascending' : 'descending');
+
+    // Sayfalama
+    document.getElementById('prevPage')?.addEventListener('click', () => {
+      if (currentPage > 1) { currentPage--; renderTable(); renderPagination(); window.scrollTo(0, 0); }
+    });
+    document.getElementById('nextPage')?.addEventListener('click', () => {
+      const totalPages = Math.ceil(sortedCoins.length / COINS_PER_PAGE);
+      if (currentPage < totalPages) { currentPage++; renderTable(); renderPagination(); window.scrollTo(0, 0); }
+    });
+
+    // Tablo içi arama
+    const tableSearch = document.getElementById('tableSearchInput');
+    if (tableSearch) {
+      let searchTimer;
+      tableSearch.addEventListener('input', () => {
+        clearTimeout(searchTimer);
+        searchTimer = setTimeout(() => {
+          searchQuery = tableSearch.value.trim();
+          applyFilter();
+        }, 300);
+      });
     }
-
-    renderTableRows(sorted);
   };
 
-  // Getter'lar
-  const getCurrentCurrency = () => currentCurrency;
-  const getCurrentPage     = () => currentPage;
+  // ----- Init -----
+  const init = async () => {
+    initEvents();
+    await Promise.all([fetchGlobal(), fetchMarkets(), fetchTrending()]);
+    buildTicker();
 
-  return {
-    renderGlobalStats, renderTrending, renderMarketTable,
-    updateAuthUI, openCoinDetail, sortTable,
-    getCurrentCurrency, getCurrentPage
+    // 60 saniyede bir yenile
+    setInterval(async () => {
+      await fetchMarkets();
+      buildTicker();
+    }, 60 * 1000);
+
+    // Global 5 dakikada bir
+    setInterval(fetchGlobal, 5 * 60 * 1000);
   };
+
+  const updateLastTime = () => {
+    const el = document.getElementById('lastUpdateTime');
+    if (el) el.textContent = new Date().toLocaleTimeString(I18n.getLang() === 'tr' ? 'tr-TR' : 'en-US');
+  };
+
+  const getAllCoins = () => allCoins;
+  const getCurrency = () => currency;
+
+  const updateLivePrice = (symbol, newPrice) => {
+    const rows = document.querySelectorAll(`#marketTableBody tr[data-symbol="${symbol.toLowerCase()}"]`);
+    rows.forEach(row => {
+      const priceCell = row.querySelector('.td-price');
+      if (!priceCell) return;
+      const oldStr = priceCell.textContent.replace(/[^0-9.-]+/g, "");
+      const oldPrice = parseFloat(oldStr);
+      if (isNaN(oldPrice) || oldPrice === newPrice) return;
+      
+      priceCell.textContent = Fmt.price(newPrice, currency);
+      
+      const flashClass = newPrice > oldPrice ? 'flash-up' : 'flash-down';
+      priceCell.classList.remove('flash-up', 'flash-down');
+      void priceCell.offsetWidth; // Reflow
+      priceCell.classList.add(flashClass);
+    });
+  };
+
+  return { init, getAllCoins, getCurrency, isInWatchlist, updateLivePrice };
 })();
 
-// =============================================================
-// App — Ana orkestrasyon + olay dinleyicileri
-// =============================================================
-const App = (() => {
-  let refreshTimer   = null;
-  let currentCurrency= 'usd';
+// ============================================================
+// NAVBAR SEARCH
+// ============================================================
+const NavSearch = (() => {
+  let timer;
 
-  const getCurrentCurrency = () => currentCurrency;
-
-  // ── Auth Form yardımcıları ──────────────────────────────────
-
-  const setAuthAlert = (message, type = 'error') => {
-    const el = document.getElementById('authAlert');
-    if (!el) return;
-    el.textContent = message;
-    el.className   = `auth-alert ${type}`;
-    el.hidden      = !message;
-  };
-
-  const setButtonLoading = (btnId, loading, text) => {
-    const btn     = document.getElementById(btnId);
+  const init = () => {
+    const btn      = document.getElementById('searchToggleBtn');
+    const dropdown = document.getElementById('searchDropdown');
+    const input    = document.getElementById('searchInput');
+    const results  = document.getElementById('searchResults');
     if (!btn) return;
-    const textEl  = btn.querySelector('.btn-text');
-    const spinner = btn.querySelector('.btn-spinner');
-    btn.disabled  = loading;
-    if (textEl)  textEl.textContent = loading ? (text || 'İşleniyor...') : textEl.dataset.original || textEl.textContent;
-    if (spinner) spinner.hidden = !loading;
-    if (loading && textEl && !textEl.dataset.original) textEl.dataset.original = textEl.textContent;
+
+    btn.addEventListener('click', () => {
+      const isOpen = !dropdown.hidden;
+      dropdown.hidden = isOpen;
+      btn.setAttribute('aria-expanded', !isOpen);
+      if (!isOpen) setTimeout(() => input.focus(), 50);
+    });
+
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('#searchWrapper')) {
+        dropdown.hidden = true;
+        btn.setAttribute('aria-expanded', false);
+      }
+    });
+
+    input.addEventListener('input', () => {
+      clearTimeout(timer);
+      const q = input.value.trim();
+      if (!q) { results.innerHTML = ''; return; }
+      timer = setTimeout(() => doSearch(q, results), 400);
+    });
   };
 
-  // ── Olay Bağlama: Auth Modal ───────────────────────────────
+  const doSearch = async (q, results) => {
+    results.innerHTML = `<li style="padding:12px 16px;color:var(--color-text-muted);font-size:.85rem">${I18n.t('loading')}</li>`;
+    try {
+      const data = await ApiService.searchCoins(q);
+      if (!data.data.length) {
+        results.innerHTML = `<li style="padding:12px 16px;color:var(--color-text-muted);font-size:.85rem">Sonuç bulunamadı.</li>`;
+        return;
+      }
+      results.innerHTML = data.data.map(c => `
+        <li class="search-result-item" data-id="${c.id}" role="option" tabindex="0">
+          ${c.thumb ? `<img src="${c.thumb}" alt="${c.name}" width="28" height="28">` : ''}
+          <span class="name">${c.name}</span>
+          <span class="symbol">${c.symbol?.toUpperCase()}</span>
+          ${c.market_cap_rank ? `<span class="rank">#${c.market_cap_rank}</span>` : ''}
+        </li>`).join('');
 
-  const bindAuthModal = () => {
-    // Açma
-    document.getElementById('loginBtn')?.addEventListener('click', () => {
-      switchAuthTab('login');
-      setAuthAlert('');
-      ModalManager.open('authModalOverlay');
+      results.querySelectorAll('.search-result-item').forEach(item => {
+        item.addEventListener('click', () => {
+          document.getElementById('searchDropdown').hidden = true;
+          CoinModal.open(item.dataset.id, null);
+        });
+      });
+    } catch {
+      results.innerHTML = `<li style="padding:12px 16px;color:var(--color-negative);font-size:.85rem">${I18n.t('err_api')}</li>`;
+    }
+  };
+
+  return { init };
+})();
+
+// ============================================================
+// COIN DETAIL MODAL
+// ============================================================
+const CoinModal = (() => {
+  let priceChartInstance = null;
+  let currentCoinId = null;
+
+  const overlay = () => document.getElementById('coinModalOverlay');
+
+  const open = async (coinId, previewData = null) => {
+    currentCoinId = coinId;
+    const modal = overlay();
+    modal.hidden = false;
+    document.body.style.overflow = 'hidden';
+
+    if (previewData) populatePreview(previewData);
+
+    // Chart yükle
+    showChartLoader(true);
+    await loadChart(coinId, 7);
+
+    // Watchlist durumu
+    const isFav = MarketsModule.isInWatchlist(coinId);
+    const favBtn = document.getElementById('coinModalWatchlistBtn');
+    if (favBtn) {
+      favBtn.classList.toggle('active', isFav);
+      const svg = favBtn.querySelector('svg');
+      if (svg) svg.setAttribute('fill', isFav ? 'currentColor' : 'none');
+    }
+  };
+
+  const close = () => {
+    overlay().hidden = true;
+    document.body.style.overflow = '';
+    currentCoinId = null;
+    if (priceChartInstance) { priceChartInstance.destroy(); priceChartInstance = null; }
+  };
+
+  const populatePreview = (c) => {
+    const s = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+    const logo = document.getElementById('coinModalLogo');
+    if (logo && c.image) { logo.src = c.image; logo.alt = c.name; }
+    s('coinModalTitle',  c.name || '—');
+    s('coinModalSymbol', c.symbol?.toUpperCase() || '—');
+    s('coinModalRank',   `#${c.market_cap_rank || '—'}`);
+
+    const cur = MarketsModule.getCurrency();
+    s('coinModalPrice', Fmt.price(c.current_price, cur));
+
+    const setBadge = (id, val) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.textContent = id.replace('coinModal', '').replace('h', 's ').replace('d', 'g ') + Fmt.pct(val);
+      el.className = `change-badge ${Fmt.pctClass(val)}`;
+    };
+    setBadge('coinModal1h',  c.price_change_percentage_1h_in_currency);
+    setBadge('coinModal24h', c.price_change_percentage_24h_in_currency || c.price_change_percentage_24h);
+    setBadge('coinModal7d',  c.price_change_percentage_7d_in_currency);
+
+    s('statMcap',      Fmt.compact(c.market_cap, cur));
+    s('statVol',       Fmt.compact(c.total_volume, cur));
+    s('statSupply',    Fmt.supply(c.circulating_supply));
+    s('statMaxSupply', Fmt.supply(c.max_supply));
+    s('statHigh',      Fmt.price(c.high_24h, cur));
+    s('statLow',       Fmt.price(c.low_24h, cur));
+    s('statATH',       Fmt.price(c.ath, cur));
+    s('statATHChange', Fmt.pct(c.ath_change_percentage));
+  };
+
+  const loadChart = async (coinId, days) => {
+    showChartLoader(true);
+    try {
+      const data = await ApiService.getChart(coinId, days.toString());
+      renderChart(data.data?.prices || [], days);
+    } catch (err) {
+      console.error('Chart load error:', err);
+    } finally {
+      showChartLoader(false);
+    }
+  };
+
+  const renderChart = (prices, days) => {
+    const canvas = document.getElementById('priceChart');
+    if (!canvas || !prices.length) return;
+
+    if (priceChartInstance) priceChartInstance.destroy();
+
+    const labels = prices.map(p => {
+      const d = new Date(p[0]);
+      return days <= 1 ? d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                       : d.toLocaleDateString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
     });
+    const values = prices.map(p => p[1]);
+    const isPos  = values[values.length - 1] >= values[0];
+    const color  = isPos ? '#00d4a0' : '#ff5470';
 
-    document.getElementById('registerBtn')?.addEventListener('click', () => {
-      switchAuthTab('register');
-      setAuthAlert('');
-      ModalManager.open('authModalOverlay');
+    const ctx  = canvas.getContext('2d');
+    const grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+
+    grad.addColorStop(0, isPos ? 'rgba(0,212,160,0.25)' : 'rgba(255,84,112,0.25)');
+    grad.addColorStop(1, 'rgba(0,0,0,0)');
+
+    priceChartInstance = new Chart(canvas, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [{
+          data         : values,
+          borderColor  : color,
+          borderWidth  : 2,
+          backgroundColor: grad,
+          fill         : true,
+          tension      : 0.4,
+          pointRadius  : 0,
+          pointHoverRadius: 5,
+          pointHoverBackgroundColor: color,
+        }]
+      },
+      options: {
+        responsive : true,
+        maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            displayColors: false,
+            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+            titleColor: '#ffffff',
+            bodyColor: '#ffffff',
+            borderColor: 'rgba(255, 255, 255, 0.1)',
+            borderWidth: 1,
+            padding: 12,
+            callbacks: {
+              title: (items) => `Tarih/Saat: ${items[0].label}`,
+              label: (ctx) => `Değer: ${Fmt.price(ctx.parsed.y, MarketsModule.getCurrency())}`
+            }
+          }
+        },
+        scales: {
+          x: {
+            grid : { color: 'rgba(255,255,255,0.04)' },
+            ticks: { color: '#5c5c7a', maxTicksLimit: 8, maxRotation: 0 }
+          },
+          y: {
+            grid : { color: 'rgba(255,255,255,0.04)' },
+            ticks: { color: '#5c5c7a', callback: (v) => Fmt.compact(v) }
+          }
+        }
+      }
     });
+  };
 
-    // Kapama
-    document.getElementById('closeAuthModal')?.addEventListener('click', () => {
-      ModalManager.close('authModalOverlay');
-    });
+  const showChartLoader = (show) => {
+    const loader = document.getElementById('chartLoader');
+    if (loader) loader.hidden = !show;
+  };
 
-    ModalManager.closeOnOverlayClick('authModalOverlay');
+  const initEvents = () => {
+    document.getElementById('closeCoinModal')?.addEventListener('click', close);
+    overlay()?.addEventListener('click', (e) => { if (e.target === overlay()) close(); });
 
-    // Sekme değiştirme
-    document.getElementById('loginTab')?.addEventListener('click',    () => switchAuthTab('login'));
-    document.getElementById('registerTab')?.addEventListener('click', () => switchAuthTab('register'));
-    document.getElementById('switchToRegister')?.addEventListener('click', () => switchAuthTab('register'));
-    document.getElementById('switchToLogin')?.addEventListener('click',    () => switchAuthTab('login'));
-
-    // Şifre göster/gizle butonları
-    document.querySelectorAll('.password-toggle').forEach(btn => {
+    // Chart period butonları
+    document.querySelectorAll('.chart-period').forEach(btn => {
       btn.addEventListener('click', () => {
-        const input = document.getElementById(btn.dataset.target);
-        if (!input) return;
-        input.type = input.type === 'password' ? 'text' : 'password';
-        btn.setAttribute('aria-label',
-          input.type === 'password' ? 'Şifreyi göster' : 'Şifreyi gizle'
-        );
+        document.querySelectorAll('.chart-period').forEach(b => {
+          b.classList.remove('active');
+          b.setAttribute('aria-pressed', false);
+        });
+        btn.classList.add('active');
+        btn.setAttribute('aria-pressed', true);
+        if (currentCoinId) loadChart(currentCoinId, parseInt(btn.dataset.days));
       });
     });
 
-    // Şifre gücü göstergesi
-    document.getElementById('registerPassword')?.addEventListener('input', (e) => {
-      checkPasswordStrength(e.target.value);
+    // Watchlist butonu (modal)
+    document.getElementById('coinModalWatchlistBtn')?.addEventListener('click', async () => {
+      if (!Auth.isLoggedIn()) { Toast.warning(I18n.t('toast_need_login')); AuthModal.open(); return; }
+      if (!currentCoinId) return;
+      const btn = document.getElementById('coinModalWatchlistBtn');
+      const isFav = btn.classList.contains('active');
+      try {
+        if (isFav) {
+          await ApiService.removeWatchlist(currentCoinId);
+          Toast.info(I18n.t('toast_watchlist_rem', currentCoinId));
+        } else {
+          await ApiService.addWatchlist(currentCoinId);
+          Toast.success(I18n.t('toast_watchlist_add', currentCoinId));
+        }
+        btn.classList.toggle('active', !isFav);
+        const svg = btn.querySelector('svg');
+        if (svg) svg.setAttribute('fill', !isFav ? 'currentColor' : 'none');
+      } catch (err) {
+        Toast.error(err.message || I18n.t('toast_error'));
+      }
     });
 
-    // Login formu
-    document.getElementById('loginForm')?.addEventListener('submit', handleLogin);
+    // Hızlı Al
+    document.getElementById('coinModalBuyBtn')?.addEventListener('click', () => {
+      if (!currentCoinId) return;
+      close();
+      TabRouter.goTo('trade');
+      setTimeout(() => TradeModule.selectCoin(currentCoinId, 'buy'), 300);
+    });
 
-    // Register formu
-    document.getElementById('registerForm')?.addEventListener('submit', handleRegister);
+    // Hızlı Sat
+    document.getElementById('coinModalSellBtn')?.addEventListener('click', () => {
+      if (!currentCoinId) return;
+      close();
+      TabRouter.goTo('trade');
+      setTimeout(() => TradeModule.selectCoin(currentCoinId, 'sell'), 300);
+    });
+
+    // ESC
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && !overlay().hidden) close();
+    });
   };
 
-  const switchAuthTab = (tab) => {
-    const loginPanel    = document.getElementById('loginPanel');
-    const registerPanel = document.getElementById('registerPanel');
-    const loginTab      = document.getElementById('loginTab');
-    const registerTab   = document.getElementById('registerTab');
+  return { open, close, initEvents };
+})();
 
-    if (tab === 'login') {
-      loginPanel.hidden    = false;
-      registerPanel.hidden = true;
-      loginTab.classList.add('active');
-      registerTab.classList.remove('active');
-      loginTab.setAttribute('aria-selected', 'true');
-      registerTab.setAttribute('aria-selected', 'false');
-    } else {
-      loginPanel.hidden    = true;
-      registerPanel.hidden = false;
-      loginTab.classList.remove('active');
-      registerTab.classList.add('active');
-      loginTab.setAttribute('aria-selected', 'false');
-      registerTab.setAttribute('aria-selected', 'true');
+// ============================================================
+// TRADE MODULE
+// ============================================================
+const TradeModule = (() => {
+  let selectedCoin   = null;
+  let currentType    = 'buy';
+  let currentPrice   = 0;
+  let walletBalances = {};
+
+  const onTabActivate = async () => {
+    populateCoinSelect();
+    if (Auth.isLoggedIn()) await loadBalances();
+  };
+
+  const onAuthChange = () => {
+    const notice = document.getElementById('tradeAuthNotice');
+    const submit = document.getElementById('tradeSubmitBtn');
+    if (notice) notice.hidden = Auth.isLoggedIn();
+    if (submit) submit.disabled = !Auth.isLoggedIn();
+    if (Auth.isLoggedIn()) loadBalances();
+    else {
+      const body = document.getElementById('tradeBalanceBody');
+      if (body) body.innerHTML = `<p class="balance-panel__login">${I18n.t('balance_login_notice')}</p>`;
     }
-    setAuthAlert('');
   };
 
-  const checkPasswordStrength = (password) => {
-    const fill  = document.getElementById('strengthFill');
-    const label = document.getElementById('strengthLabel');
-    if (!fill || !label) return;
+  const populateCoinSelect = () => {
+    const select = document.getElementById('tradeCoinSelect');
+    if (!select) return;
+    const coins = MarketsModule.getAllCoins();
+    if (!coins.length) return;
+    select.innerHTML = coins.map(c =>
+      `<option value="${c.id}" data-symbol="${c.symbol?.toUpperCase()}" data-price="${c.current_price}">
+        ${c.name} (${c.symbol?.toUpperCase()})
+      </option>`
+    ).join('');
+    select.value = coins[0]?.id || '';
+    onCoinChange();
+  };
 
-    let score = 0;
-    if (password.length >= 6)                          score++;
-    if (password.length >= 10)                         score++;
-    if (/[A-Z]/.test(password) && /[0-9]/.test(password)) score++;
-    if (/[^A-Za-z0-9]/.test(password))               score++;
+  const onCoinChange = () => {
+    const select = document.getElementById('tradeCoinSelect');
+    if (!select) return;
+    const opt = select.options[select.selectedIndex];
+    if (!opt) return;
+    selectedCoin   = select.value;
+    currentPrice   = parseFloat(opt.dataset.price) || 0;
+    const symbol   = opt.dataset.symbol || '';
+    const coin = MarketsModule.getAllCoins().find(c => c.id === selectedCoin);
+    const ch24h = coin?.price_change_percentage_24h_in_currency || coin?.price_change_percentage_24h;
 
-    const levels = [
-      { cls: '', text: '' },
-      { cls: 'weak',   text: 'Zayıf',   color: 'var(--red)'  },
-      { cls: 'fair',   text: 'Orta',    color: 'var(--gold)' },
-      { cls: 'strong', text: 'Güçlü',   color: 'var(--green)'},
-      { cls: 'strong', text: 'Çok Güçlü', color: 'var(--cyan)'}
-    ];
+    document.getElementById('tradeCurrentPrice').textContent = Fmt.price(currentPrice, MarketsModule.getCurrency());
+    const changeEl = document.getElementById('tradeCurrentChange');
+    if (changeEl) {
+      changeEl.textContent  = Fmt.pct(ch24h);
+      changeEl.className    = `price-display__change ${Fmt.pctClass(ch24h)}`;
+    }
+    const suffix = document.getElementById('tradeAmountSuffix');
+    if (suffix) suffix.textContent = symbol;
+    updateSummary();
+    setQuickAmounts();
+  };
 
-    const level = levels[Math.min(score, 4)];
-    fill.className = `strength-fill ${level.cls}`;
-    label.textContent = level.text;
-    label.style.color = level.color || '';
+  const updateSummary = () => {
+    const amount = parseFloat(document.getElementById('tradeAmount')?.value) || 0;
+    const total  = amount * currentPrice;
+    document.getElementById('summaryPrice').textContent  = Fmt.price(currentPrice, MarketsModule.getCurrency());
+    document.getElementById('summaryAmount').textContent = `${amount || '—'} ${document.getElementById('tradeAmountSuffix')?.textContent || ''}`;
+    document.getElementById('summaryTotal').textContent  = total ? Fmt.price(total, MarketsModule.getCurrency()) : '—';
+  };
+
+  const setQuickAmounts = () => {
+    const select = document.getElementById('tradeCoinSelect');
+    const opt    = select?.options[select.selectedIndex];
+    if (!opt) return;
+    const symbol = opt.dataset.symbol;
+    const isUSD  = currentType === 'buy';
+
+    document.querySelectorAll('#tab-trade .quick-amounts .quick-btn').forEach(btn => {
+      const pct = parseInt(btn.dataset.pct);
+      if (isNaN(pct)) return;
+
+      btn.addEventListener('click', () => {
+        const balance = isUSD
+          ? (walletBalances['USD'] || 0)
+          : (walletBalances[symbol] || 0);
+        const maxVal = isUSD
+          ? (balance / currentPrice) * (pct / 100)
+          : balance * (pct / 100);
+        const input = document.getElementById('tradeAmount');
+        if (input) { input.value = maxVal.toFixed(8).replace(/\.?0+$/, ''); updateSummary(); }
+      });
+    });
+  };
+
+  const loadBalances = async () => {
+    try {
+      const data = await ApiService.getWallet();
+      walletBalances = {};
+      (data.data || []).forEach(w => { walletBalances[w.currency] = w.balance; });
+      renderBalancePanel();
+    } catch { 
+      walletBalances = {};
+      renderBalancePanel();
+    }
+  };
+
+  const renderBalancePanel = () => {
+    const body = document.getElementById('tradeBalanceBody');
+    if (!body) return;
+    const entries = Object.entries(walletBalances);
+    if (!entries.length) {
+      body.innerHTML = `<p class="empty-notice" style="padding: 16px; text-align: center; color: var(--color-text-muted);">Henüz bakiyeniz yok</p>`;
+      return;
+    }
+    body.innerHTML = entries.slice(0, 8).map(([cur, bal]) => `
+      <div class="balance-item">
+        <div class="balance-item__currency">
+          ${cur} <span>${getCurrencyName(cur)}</span>
+        </div>
+        <div class="balance-item__amount">${Fmt.cryptoAmount(bal)}</div>
+      </div>`).join('');
+  };
+
+  const getCurrencyName = (cur) => {
+    const names = { USD: 'Dolar', EUR: 'Euro', TRY: 'Türk Lirası', BTC: 'Bitcoin', ETH: 'Ethereum', BNB: 'BNB', SOL: 'Solana', ADA: 'Cardano', XRP: 'Ripple' };
+    return names[cur] || '';
+  };
+
+  const selectCoin = (coinId, type) => {
+    const select = document.getElementById('tradeCoinSelect');
+    if (!select) return;
+    for (let i = 0; i < select.options.length; i++) {
+      if (select.options[i].value === coinId) { select.value = coinId; break; }
+    }
+    onCoinChange();
+    if (type) setTradeType(type);
+  };
+
+  const setTradeType = (type) => {
+    currentType = type;
+    const buyBtn  = document.getElementById('tradeBuyBtn');
+    const sellBtn = document.getElementById('tradeSellBtn');
+    const submit  = document.getElementById('tradeSubmitBtn');
+    if (buyBtn)  { buyBtn.classList.toggle('active', type === 'buy');   buyBtn.setAttribute('aria-pressed', type === 'buy'); }
+    if (sellBtn) { sellBtn.classList.toggle('active', type === 'sell'); sellBtn.setAttribute('aria-pressed', type === 'sell'); }
+    if (submit) {
+      submit.className = `btn btn--trade btn--full ${type === 'buy' ? 'btn--buy' : 'btn--sell-action'}`;
+      submit.querySelector('.btn-text').textContent = I18n.t(type === 'buy' ? 'btn_buy' : 'btn_sell');
+    }
+    setQuickAmounts();
+  };
+
+  const doTrade = async () => {
+    if (!Auth.isLoggedIn()) { Toast.warning(I18n.t('toast_need_login')); AuthModal.open(); return; }
+    const amount = parseFloat(document.getElementById('tradeAmount')?.value);
+    if (!amount || amount <= 0) { Toast.warning('Lütfen geçerli bir miktar girin.'); return; }
+
+    const select = document.getElementById('tradeCoinSelect');
+    const opt    = select?.options[select.selectedIndex];
+    const symbol = opt?.dataset.symbol || '';
+
+    const submitBtn = document.getElementById('tradeSubmitBtn');
+    submitBtn.disabled = true;
+    const spinner = submitBtn.querySelector('.btn-spinner');
+    const text    = submitBtn.querySelector('.btn-text');
+    if (spinner) spinner.hidden = false;
+    if (text)    text.hidden    = true;
+
+    try {
+      const data = await ApiService.trade(selectedCoin, symbol, currentType, amount);
+      const fn   = currentType === 'buy' ? 'toast_buy_success' : 'toast_sell_success';
+      Toast.success(I18n.t(fn, Fmt.cryptoAmount(data.amount), data.symbol, Fmt.price(data.price)));
+      document.getElementById('tradeAmount').value = '';
+      updateSummary();
+      await loadBalances();
+      // Recent trades
+      loadRecentTrades();
+    } catch (err) {
+      Toast.error(err.message || I18n.t('toast_error'));
+    } finally {
+      submitBtn.disabled = !Auth.isLoggedIn();
+      if (spinner) spinner.hidden = true;
+      if (text)    text.hidden    = false;
+    }
+  };
+
+  const loadRecentTrades = async () => {
+    if (!Auth.isLoggedIn()) return;
+    try {
+      const data = await ApiService.getTransactions(5, 0);
+      const body = document.getElementById('recentTradesBody');
+      if (!body) return;
+      const txs = (data.data || []).filter(t => ['buy', 'sell'].includes(t.type));
+      if (!txs.length) {
+        body.innerHTML = `<p class="empty-notice">${I18n.t('no_transactions')}</p>`;
+        return;
+      }
+      body.innerHTML = txs.map(t => `
+        <div class="trade-history-item">
+          <span class="trade-history-item__type ${t.type}">${t.type.toUpperCase()}</span>
+          <div class="trade-history-item__details">
+            <div class="trade-history-item__coin">${t.to_currency !== 'USD' ? t.to_currency : t.from_currency}</div>
+            <div class="trade-history-item__meta">${Fmt.time(t.created_at)}</div>
+          </div>
+          <div class="trade-history-item__total ${t.type === 'buy' ? 'negative' : 'positive'}">
+            ${t.type === 'buy' ? '-' : '+'}${Fmt.price(t.total)}
+          </div>
+        </div>`).join('');
+    } catch { /* silent */ }
+  };
+
+  const initEvents = () => {
+    document.getElementById('tradeCoinSelect')?.addEventListener('change', onCoinChange);
+    document.getElementById('tradeAmount')?.addEventListener('input', updateSummary);
+    document.getElementById('tradeBuyBtn')?.addEventListener('click',  () => setTradeType('buy'));
+    document.getElementById('tradeSellBtn')?.addEventListener('click', () => setTradeType('sell'));
+    document.getElementById('tradeSubmitBtn')?.addEventListener('click', doTrade);
+    document.getElementById('tradeLoginLink')?.addEventListener('click', () => AuthModal.open());
+  };
+
+  const updateLivePrice = (sym, newPrice) => {
+    if (!selectedCoin) return;
+    const select = document.getElementById('tradeCoinSelect');
+    const opt = select?.options[select.selectedIndex];
+    if (opt?.dataset.symbol?.toLowerCase() === sym.toLowerCase()) {
+       currentPrice = newPrice;
+       const priceEl = document.getElementById('tradeCurrentPrice');
+       if (priceEl) {
+         const oldStr = priceEl.textContent.replace(/[^0-9.-]+/g, "");
+         const oldPrice = parseFloat(oldStr);
+         if (!isNaN(oldPrice) && oldPrice !== newPrice) {
+            priceEl.textContent = Fmt.price(newPrice, MarketsModule.getCurrency());
+            const flashClass = newPrice > oldPrice ? 'flash-up' : 'flash-down';
+            priceEl.classList.remove('flash-up', 'flash-down');
+            void priceEl.offsetWidth;
+            priceEl.classList.add(flashClass);
+         }
+       }
+       updateSummary();
+    }
+  };
+
+  const init = () => {
+    initEvents();
+    onAuthChange();
+  };
+
+  return { init, onTabActivate, onAuthChange, selectCoin, updateLivePrice };
+})();
+
+// ============================================================
+// CONVERTER MODULE
+// ============================================================
+const ConverterModule = (() => {
+  let priceMap = {};
+  let calcTimer;
+
+  const FIAT_IDS = ['usd', 'eur', 'try'];
+  const CRYPTO_IDS = ['bitcoin', 'ethereum', 'binancecoin', 'solana', 'cardano'];
+  // Sabit fiat oranları (usd cinsinden)
+  const FIAT_RATES = { usd: 1, eur: 0.92, try: 32.5 };
+
+  const MARKET_PAIRS = [
+    { from: 'bitcoin',  to: 'usd', label: 'BTC/USD' },
+    { from: 'ethereum', to: 'usd', label: 'ETH/USD' },
+    { from: 'bitcoin',  to: 'ethereum', label: 'BTC/ETH' },
+    { from: 'solana',   to: 'usd', label: 'SOL/USD' },
+    { from: 'binancecoin', to: 'usd', label: 'BNB/USD' },
+  ];
+
+  const onTabActivate = async () => {
+    await loadPrices();
+    calculate();
+    renderMarketRates();
+  };
+
+  const loadPrices = async () => {
+    try {
+      const ids  = CRYPTO_IDS.join(',');
+      const data = await ApiService.getPrices(ids, 'usd');
+      priceMap = data.data || {};
+      document.getElementById('converterRateInfo').hidden  = false;
+      document.getElementById('converterRateLoading').hidden = true;
+    } catch (err) {
+      console.error('Converter prices error:', err);
+    }
+  };
+
+  // USD cinsinden fiyat al
+  const getUsdPrice = (id) => {
+    if (FIAT_IDS.includes(id.toLowerCase())) return FIAT_RATES[id.toLowerCase()] || 1;
+    return priceMap[id]?.usd || 0;
+  };
+
+  const calculate = () => {
+    const fromAmt   = parseFloat(document.getElementById('converterFromAmount')?.value) || 0;
+    const fromSel   = document.getElementById('converterFromCurrency');
+    const toSel     = document.getElementById('converterToCurrency');
+    if (!fromSel || !toSel) return;
+
+    const fromId    = fromSel.value;
+    const toId      = toSel.value;
+    const fromUsd   = getUsdPrice(fromId);
+    const toUsd     = getUsdPrice(toId);
+
+    const toAmount  = toUsd > 0 ? (fromAmt * fromUsd) / toUsd : 0;
+    const toInput   = document.getElementById('converterToAmount');
+    if (toInput) toInput.value = toAmount ? toAmount.toPrecision(8).replace(/\.?0+$/, '') : '';
+
+    // Kur metni
+    const fromSym = fromSel.options[fromSel.selectedIndex]?.dataset.symbol || fromId.toUpperCase();
+    const toSym   = toSel.options[toSel.selectedIndex]?.dataset.symbol   || toId.toUpperCase();
+    const rate    = toUsd > 0 ? (fromUsd / toUsd) : 0;
+    const rateEl  = document.getElementById('converterRateText');
+    if (rateEl) rateEl.textContent = `1 ${fromSym} = ${rate.toPrecision(6).replace(/\.?0+$/, '')} ${toSym}`;
+
+    const updateEl = document.getElementById('converterRateUpdate');
+    if (updateEl) updateEl.textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
+
+  const renderMarketRates = () => {
+    const container = document.getElementById('converterMarketRates');
+    if (!container) return;
+    container.innerHTML = MARKET_PAIRS.map(p => {
+      const fromPrice = getUsdPrice(p.from);
+      const toPrice   = getUsdPrice(p.to);
+      const rate      = toPrice > 0 ? fromPrice / toPrice : 0;
+      const change    = priceMap[p.from]?.usd_24h_change;
+      return `
+        <div class="market-rate-item">
+          <span class="market-rate-item__pair">${p.label}</span>
+          <span class="market-rate-item__rate">${rate.toLocaleString('en-US', { maximumFractionDigits: 4 })}</span>
+          ${change !== undefined
+            ? `<span class="market-rate-item__change ${Fmt.pctClass(change)}">${Fmt.pct(change)}</span>`
+            : ''}
+        </div>`;
+    }).join('');
+  };
+
+  const initEvents = () => {
+    ['converterFromAmount', 'converterFromCurrency', 'converterToCurrency'].forEach(id => {
+      document.getElementById(id)?.addEventListener('input', () => {
+        clearTimeout(calcTimer);
+        calcTimer = setTimeout(calculate, 200);
+      });
+      document.getElementById(id)?.addEventListener('change', calculate);
+    });
+
+    document.getElementById('converterSwapBtn')?.addEventListener('click', () => {
+      const fromSel = document.getElementById('converterFromCurrency');
+      const toSel   = document.getElementById('converterToCurrency');
+      if (!fromSel || !toSel) return;
+      const tmp    = fromSel.value;
+      fromSel.value = toSel.value;
+      toSel.value   = tmp;
+      calculate();
+    });
+
+    // Hızlı değer butonları
+    document.querySelectorAll('#tab-converter .quick-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const val = parseFloat(btn.dataset.val);
+        if (!isNaN(val)) {
+          const input = document.getElementById('converterFromAmount');
+          if (input) { input.value = val; calculate(); }
+        }
+      });
+    });
+  };
+
+  const init = () => {
+    initEvents();
+  };
+
+  return { init, onTabActivate };
+})();
+
+// ============================================================
+// WALLET MODULE
+// ============================================================
+const WalletModule = (() => {
+  let transactionOffset = 0;
+  const LIMIT = 20;
+  let walletChartInstance = null;
+  let stakingTimer = null;
+  let currentStaking = null;
+
+  const onTabActivate = async () => {
+    if (!Auth.isLoggedIn()) return;
+    await Promise.all([loadBalances(), loadTransactions(true), loadStaking()]);
+  };
+
+  const onAuthChange = () => {
+    const notice  = document.getElementById('walletAuthNotice');
+    const content = document.getElementById('walletContent');
+    if (!notice || !content) return;
+    notice.hidden  = Auth.isLoggedIn();
+    content.hidden = !Auth.isLoggedIn();
+    if (Auth.isLoggedIn() && TabRouter.getCurrent() === 'wallet') onTabActivate();
+  };
+
+  const loadBalances = async () => {
+    try {
+      const data = await ApiService.getWallet();
+      const items = data.data || [];
+      renderBalances(items);
+      updateTotalValue(items);
+      const usd = items.find(w => w.currency === 'USD');
+      const avEl = document.getElementById('withdrawAvailable');
+      if (avEl) avEl.textContent = Fmt.price(usd?.balance || 0, 'usd');
+    } catch (err) {
+      console.error('Wallet load error:', err);
+    }
+  };
+
+  const updateTotalValue = (items) => {
+    const allCoins = MarketsModule.getAllCoins();
+    let total = 0;
+    let totalInvested = 0;
+
+    items.forEach(w => {
+      let usdVal = 0;
+      if (w.currency === 'USD') usdVal = w.balance;
+      else if (w.currency === 'EUR') usdVal = w.balance * 1.09;
+      else if (w.currency === 'TRY') usdVal = w.balance / 32.5;
+      else {
+        const coin = allCoins.find(c => c.symbol?.toUpperCase() === w.currency);
+        if (coin) usdVal = w.balance * (coin.current_price || 0);
+      }
+      total += usdVal;
+      
+      // P&L
+      if (w.currency !== 'USD' && w.avg_buy_price && w.balance > 0) {
+        totalInvested += (w.balance * w.avg_buy_price);
+      }
+    });
+
+    const el = document.getElementById('walletTotalValue');
+    if (el) el.textContent = Fmt.price(total, 'usd');
+    
+    const pnlEl = document.getElementById('walletTotalPnl');
+    if (pnlEl) {
+      if (totalInvested > 0) {
+        let netPnl = 0;
+        items.forEach(w => {
+           if (w.currency !== 'USD' && w.avg_buy_price && w.balance > 0) {
+             const coin = allCoins.find(c => c.symbol?.toUpperCase() === w.currency);
+             if (coin) {
+               const currentVal = w.balance * coin.current_price;
+               const investedVal = w.balance * w.avg_buy_price;
+               netPnl += (currentVal - investedVal);
+             }
+           }
+        });
+        const pnlPct = (netPnl / totalInvested) * 100;
+        const sign = netPnl >= 0 ? '+' : '';
+        const colorClass = netPnl >= 0 ? 'color-positive' : 'color-negative';
+        pnlEl.innerHTML = `<span class="${colorClass}">${sign}${Fmt.price(netPnl, 'usd')} (${sign}${pnlPct.toFixed(2)}%)</span>`;
+        pnlEl.style.opacity = 1;
+      } else {
+        pnlEl.innerHTML = '';
+        pnlEl.style.opacity = 0;
+      }
+    }
+
+    const sub = document.getElementById('walletTotalSub');
+    if (sub) sub.textContent = `${items.length} farklı varlık`;
+  };
+
+  const renderBalances = (items) => {
+    const list = document.getElementById('walletBalanceList');
+    if (!list) return;
+    if (!items.length) {
+      list.innerHTML = `<p class="empty-notice" style="padding: 16px; text-align: center; color: var(--color-text-muted);">Henüz cüzdanınızda varlık bulunmuyor.</p>`;
+      return;
+    }
+    const allCoins = MarketsModule.getAllCoins();
+
+    let chartLabels = [];
+    let chartData = [];
+    let chartColors = [];
+    const colorPalette = ['#00FF88', '#FF0055', '#00BBFF', '#FFBB00', '#9900FF', '#FF5500', '#00FFCC'];
+
+    const transferCur = document.getElementById('transferCurrency');
+    const stakeCur = document.getElementById('stakeCurrency');
+    if (transferCur) transferCur.innerHTML = '';
+    if (stakeCur) stakeCur.innerHTML = '';
+
+    list.innerHTML = items.map((w, index) => {
+      const coin = allCoins.find(c => c.symbol?.toUpperCase() === w.currency);
+      const usdVal = w.currency === 'USD' ? w.balance
+                   : w.currency === 'EUR' ? w.balance * 1.09
+                   : w.currency === 'TRY' ? w.balance / 32.5
+                   : coin ? w.balance * coin.current_price : 0;
+      
+      if (usdVal > 0) {
+        chartLabels.push(w.currency);
+        chartData.push(usdVal);
+        chartColors.push(colorPalette[index % colorPalette.length]);
+      }
+
+      if (w.balance > 0) {
+        if (transferCur) transferCur.innerHTML += `<option value="${w.currency}">${w.currency} (Mevcut: ${Fmt.cryptoAmount(w.balance)})</option>`;
+        if (stakeCur) stakeCur.innerHTML += `<option value="${w.currency}">${w.currency} (Mevcut: ${Fmt.cryptoAmount(w.balance)})</option>`;
+      }
+
+      return `
+        <div class="wallet-balance-item">
+          <div class="wallet-balance-item__left">
+            <div class="wallet-balance-item__icon" style="background: ${colorPalette[index % colorPalette.length]}33; color: ${colorPalette[index % colorPalette.length]}">${w.currency[0]}</div>
+            <div>
+              <div class="wallet-balance-item__currency">${w.currency}</div>
+              <div class="wallet-balance-item__name">${coin?.name || getCurrencyName(w.currency) || ''}</div>
+            </div>
+          </div>
+          <div class="wallet-balance-item__right" style="text-align:right;">
+            <div class="wallet-balance-item__amount">${Fmt.cryptoAmount(w.balance)}</div>
+            ${usdVal ? `<div class="wallet-balance-item__usd">${Fmt.price(usdVal, 'usd')}</div>` : ''}
+            ${(w.avg_buy_price && w.balance > 0 && w.currency !== 'USD') ? `
+              <div style="font-size:0.75rem; color:var(--color-text-muted); margin-top:4px;">
+                ${I18n.t('wallet_avg_buy')} ${Fmt.price(w.avg_buy_price, 'usd')}<br>
+                ${I18n.t('pnl_label')} <span style="color: ${(usdVal - (w.balance * w.avg_buy_price)) >= 0 ? 'var(--color-positive)' : 'var(--color-negative)'}">${Fmt.price(usdVal - (w.balance * w.avg_buy_price), 'usd')}</span>
+              </div>
+            ` : ''}
+          </div>
+        </div>`;
+    }).join('');
+
+    renderChart(chartLabels, chartData, chartColors);
+  };
+
+  const renderChart = (labels, data, colors) => {
+    const ctx = document.getElementById('walletChart');
+    if (!ctx) return;
+    if (walletChartInstance) walletChartInstance.destroy();
+    
+    // Yalnızca renderBalances'den değer gelirse çiz
+    if (data.length === 0) return;
+
+    walletChartInstance = new Chart(ctx, {
+      type: 'doughnut',
+      data: {
+        labels: labels,
+        datasets: [{
+          data: data,
+          backgroundColor: colors,
+          borderWidth: 0,
+          hoverOffset: 10
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        cutout: '75%',
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: 'rgba(10,10,10,0.9)',
+            titleColor: '#fff',
+            bodyColor: '#fff',
+            padding: 12,
+            cornerRadius: 8,
+            callbacks: {
+              label: function(context) { return ' ' + Fmt.price(context.raw, 'usd'); }
+            }
+          }
+        }
+      }
+    });
+  };
+
+  const loadStaking = async () => {
+    try {
+      const resp = await ApiService.getStaking();
+      const stakings = resp.data || [];
+      const activeContainer = document.getElementById('activeStakingContainer');
+      const newContainer = document.getElementById('newStakingContainer');
+      if (!activeContainer || !newContainer) return;
+
+      if (stakings.length > 0) {
+        currentStaking = stakings[0]; 
+        activeContainer.hidden = false;
+        newContainer.hidden = true;
+        document.getElementById('stakedAmountLabel').textContent = `${currentStaking.amount} ${currentStaking.currency}`;
+        startStakingSimulation();
+      } else {
+        currentStaking = null;
+        activeContainer.hidden = true;
+        newContainer.hidden = false;
+        clearInterval(stakingTimer);
+      }
+    } catch (err) {
+      console.error('Staking load error:', err);
+    }
+  };
+
+  const startStakingSimulation = () => {
+    clearInterval(stakingTimer);
+    if (!currentStaking) return;
+    
+    const updateInterest = () => {
+      const lockedTimeMs = new Date() - new Date(currentStaking.locked_at + 'Z');
+      const lockedSeconds = Math.max(0, lockedTimeMs / 1000);
+      const interestPerSecond = (currentStaking.apy / 100) / (365 * 24 * 60 * 60);
+      const earned = currentStaking.amount * interestPerSecond * lockedSeconds;
+      const lbl = document.getElementById('stakedEarnedLabel');
+      if (lbl) lbl.textContent = `+${earned.toFixed(6)} ${currentStaking.currency}`;
+    };
+
+    updateInterest();
+    stakingTimer = setInterval(updateInterest, 1000);
+  };
+
+  const getCurrencyName = (cur) => {
+    const n = { USD: 'US Dollar', EUR: 'Euro', TRY: 'Turkish Lira' };
+    return n[cur] || '';
+  };
+
+  const loadTransactions = async (reset = false) => {
+    if (reset) transactionOffset = 0;
+    try {
+      const data = await ApiService.getTransactions(LIMIT, transactionOffset);
+      const txs  = data.data || [];
+      transactionOffset += txs.length;
+
+      const list = document.getElementById('transactionsList');
+      if (!list) return;
+
+      if (reset) list.innerHTML = '';
+      if (!txs.length && reset) {
+        list.innerHTML = `<p class="empty-notice">${I18n.t('no_transactions')}</p>`;
+        return;
+      }
+
+      const typeIcons = { BUY: '📈', SELL: '📉', DEPOSIT: '💰', WITHDRAW: '💸', TRANSFER_IN: '📥', TRANSFER_OUT: '📤' };
+      list.insertAdjacentHTML('beforeend', txs.map(t => {
+        const typeUp = (t.type || '').toUpperCase();
+        const isInflow = ['BUY', 'DEPOSIT', 'TRANSFER_IN'].includes(typeUp);
+        return `
+          <div class="transaction-item">
+            <div class="transaction-item__icon ${typeUp.toLowerCase()}">${typeIcons[typeUp] || '💱'}</div>
+            <div class="transaction-item__details">
+              <div class="transaction-item__title">${typeUp} ${t.coin_symbol || 'USD'}</div>
+              <div class="transaction-item__date">${Fmt.time(t.timestamp)}</div>
+            </div>
+            <div class="transaction-item__amount ${isInflow ? 'positive' : 'negative'}">
+              ${isInflow ? '+' : '-'}${Fmt.price(t.total_cost || t.amount)}
+            </div>
+          </div>`;
+      }).join(''));
+
+      const loadMoreBtn = document.getElementById('loadMoreTransactions');
+      if (loadMoreBtn) loadMoreBtn.hidden = txs.length < LIMIT;
+    } catch (err) {
+      console.error('Transactions load error:', err);
+    }
+  };
+
+  const doDeposit = async () => {
+    const amount = parseFloat(document.getElementById('depositAmount')?.value);
+    if (!amount || amount <= 0) return Toast.warning('Geçerli miktar girin.');
+    try {
+      await ApiService.deposit(amount);
+      Toast.success(I18n.t('toast_deposit_ok', amount));
+      document.getElementById('depositAmount').value = '';
+      onTabActivate();
+    } catch (err) { Toast.error(err.message || I18n.t('toast_error')); }
+  };
+
+  const doWithdraw = async () => {
+    const amount = parseFloat(document.getElementById('withdrawAmount')?.value);
+    if (!amount || amount <= 0) return Toast.warning('Geçerli miktar girin.');
+    try {
+      await ApiService.withdraw(amount);
+      Toast.success(I18n.t('toast_withdraw_ok', amount));
+      document.getElementById('withdrawAmount').value = '';
+      onTabActivate();
+    } catch (err) { Toast.error(err.message || I18n.t('toast_error')); }
+  };
+
+  const doTransfer = async () => {
+    const email = document.getElementById('transferEmail')?.value;
+    const currency = document.getElementById('transferCurrency')?.value;
+    const amount = parseFloat(document.getElementById('transferAmount')?.value);
+    if (!email || !currency || !amount) return Toast.warning('Tüm alanları doldurun.');
+    try {
+      const res = await ApiService.transfer(email, currency, amount);
+      Toast.success('Başarılı', res.message);
+      document.getElementById('transferAmount').value = '';
+      document.getElementById('transferEmail').value = '';
+      onTabActivate();
+    } catch (err) { Toast.error('Hata', err.message); }
+  };
+
+  const doStake = async () => {
+    const currency = document.getElementById('stakeCurrency')?.value;
+    const amount = parseFloat(document.getElementById('stakeAmount')?.value);
+    if (!currency || !amount) return Toast.warning('Geçerli varlık ve miktar girin.');
+    try {
+      const res = await ApiService.stake(currency, amount);
+      Toast.success('Başarılı', res.message);
+      document.getElementById('stakeAmount').value = '';
+      onTabActivate();
+    } catch (err) { Toast.error('Hata', err.message); }
+  };
+
+  const doUnstake = async () => {
+    if (!currentStaking) return;
+    try {
+      const res = await ApiService.unstake(currentStaking.currency);
+      Toast.success('Stake Bozuldu', res.message);
+      onTabActivate();
+    } catch (err) { Toast.error('Hata', err.message); }
+  };
+
+  const initEvents = () => {
+    document.getElementById('walletLoginBtn')?.addEventListener('click', () => AuthModal.open());
+    document.getElementById('depositBtn')?.addEventListener('click', doDeposit);
+    document.getElementById('withdrawBtn')?.addEventListener('click', doWithdraw);
+    document.getElementById('transferBtn')?.addEventListener('click', doTransfer);
+    document.getElementById('stakeBtn')?.addEventListener('click', doStake);
+    document.getElementById('unstakeBtn')?.addEventListener('click', doUnstake);
+    document.getElementById('loadMoreTransactions')?.addEventListener('click', () => loadTransactions(false));
+
+    // Yatır/Çek/Transfer tab toggle
+    document.querySelectorAll('.dw-tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.dw-tab-btn').forEach(b => { b.classList.remove('active'); b.setAttribute('aria-selected', false); });
+        btn.classList.add('active');
+        btn.setAttribute('aria-selected', true);
+        const target = btn.dataset.dwtab;
+        
+        const depPanel = document.getElementById('depositPanel');
+        const witPanel = document.getElementById('withdrawPanel');
+        const trnPanel = document.getElementById('transferPanel');
+        
+        if(depPanel) depPanel.hidden = target !== 'deposit';
+        if(witPanel) witPanel.hidden = target !== 'withdraw';
+        if(trnPanel) trnPanel.hidden = target !== 'transfer';
+      });
+    });
+
+    document.querySelectorAll('#depositPanel .quick-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const input = document.getElementById('depositAmount');
+        if (input) input.value = btn.dataset.amount;
+      });
+    });
+  };
+
+  const init = () => { initEvents(); };
+
+  return { init, onTabActivate, onAuthChange };
+})();
+
+// ============================================================
+// AUTH MODAL
+// ============================================================
+const AuthModal = (() => {
+  const overlay = () => document.getElementById('authModalOverlay');
+
+  const open = (tab = 'login') => {
+    const modal = overlay();
+    if (!modal) return;
+    modal.hidden = false;
+    document.body.style.overflow = 'hidden';
+    showTab(tab);
+    clearAlert();
+    setTimeout(() => {
+      const input = tab === 'login'
+        ? document.getElementById('loginEmail')
+        : document.getElementById('registerUsername');
+      input?.focus();
+    }, 100);
+  };
+
+  const close = () => {
+    overlay().hidden = true;
+    document.body.style.overflow = '';
+  };
+
+  const showTab = (tab) => {
+    const isLogin = tab === 'login';
+    document.getElementById('loginPanel').hidden    = !isLogin;
+    document.getElementById('registerPanel').hidden = isLogin;
+    document.getElementById('loginTab').classList.toggle('active', isLogin);
+    document.getElementById('registerTab').classList.toggle('active', !isLogin);
+    document.getElementById('loginTab').setAttribute('aria-selected', isLogin);
+    document.getElementById('registerTab').setAttribute('aria-selected', !isLogin);
+  };
+
+  const showAlert = (msg, type = 'error') => {
+    const alert = document.getElementById('authAlert');
+    alert.textContent = msg;
+    alert.className   = `auth-alert ${type}`;
+    alert.hidden      = false;
+  };
+
+  const clearAlert = () => {
+    const alert = document.getElementById('authAlert');
+    if (alert) { alert.hidden = true; alert.textContent = ''; }
+  };
+
+  const setLoading = (btnId, loading) => {
+    const btn     = document.getElementById(btnId);
+    if (!btn) return;
+    const spinner = btn.querySelector('.btn-spinner');
+    const text    = btn.querySelector('.btn-text');
+    btn.disabled = loading;
+    if (spinner) spinner.hidden = !loading;
+    if (text)    text.hidden    = loading;
   };
 
   const handleLogin = async (e) => {
     e.preventDefault();
+    clearAlert();
     const email    = document.getElementById('loginEmail')?.value?.trim();
     const password = document.getElementById('loginPassword')?.value;
-
-    if (!email || !password) {
-      setAuthAlert('Lütfen tüm alanları doldurun.', 'error');
-      return;
-    }
-
-    setButtonLoading('loginSubmitBtn', true, 'Giriş Yapılıyor...');
-    setAuthAlert('');
-
+    if (!email || !password) { showAlert('E-posta ve şifre zorunludur.'); return; }
+    setLoading('loginSubmitBtn', true);
     try {
-      const response = await API.login(email, password);
-      AuthManager.setSession(response.token, response.user);
-
-      ModalManager.close('authModalOverlay');
-      UIManager.updateAuthUI();
-      ToastManager.show(`Hoş geldiniz, ${response.user.username}! 🚀`, 'success');
-
-      // Watchlist'i yükle ve göster
-      await WatchlistManager.renderWatchlist();
-      // Tablo satırlarındaki watchlist butonlarını güncelle
-      UIManager.renderMarketTable(UIManager.getCurrentPage?.() || 1, currentCurrency);
-
+      const data = await ApiService.login(email, password);
+      Auth.setSession(data.user, data.token);
+      Toast.success(I18n.t('toast_login_ok'));
+      close();
     } catch (err) {
-      setAuthAlert(err.message || 'Giriş başarısız.', 'error');
+      showAlert(err.message || I18n.t('toast_error'));
     } finally {
-      setButtonLoading('loginSubmitBtn', false);
+      setLoading('loginSubmitBtn', false);
     }
   };
 
   const handleRegister = async (e) => {
     e.preventDefault();
+    clearAlert();
     const username = document.getElementById('registerUsername')?.value?.trim();
     const email    = document.getElementById('registerEmail')?.value?.trim();
     const password = document.getElementById('registerPassword')?.value;
-
-    if (!username || !email || !password) {
-      setAuthAlert('Lütfen tüm alanları doldurun.', 'error');
-      return;
-    }
-
-    if (password.length < 6) {
-      setAuthAlert('Şifre en az 6 karakter olmalıdır.', 'error');
-      return;
-    }
-
-    setButtonLoading('registerSubmitBtn', true, 'Hesap Oluşturuluyor...');
-    setAuthAlert('');
-
+    if (!username || !email || !password) { showAlert('Tüm alanlar zorunludur.'); return; }
+    setLoading('registerSubmitBtn', true);
     try {
-      const response = await API.register(username, email, password);
-      AuthManager.setSession(response.token, response.user);
-
-      ModalManager.close('authModalOverlay');
-      UIManager.updateAuthUI();
-      ToastManager.show(`Hesabınız oluşturuldu! Hoş geldiniz, ${response.user.username}! 🎉`, 'success');
-
-      await WatchlistManager.renderWatchlist();
-      UIManager.renderMarketTable(1, currentCurrency);
-
+      await ApiService.register(username, email, password);
+      Toast.success('Hesap başarıyla oluşturuldu! Lütfen giriş yapın.');
+      showTab('login');
+      const loginEmailInput = document.getElementById('loginEmail');
+      if(loginEmailInput) loginEmailInput.value = email;
     } catch (err) {
-      setAuthAlert(err.message || 'Kayıt başarısız.', 'error');
+      showAlert(err.message || I18n.t('toast_error'));
     } finally {
-      setButtonLoading('registerSubmitBtn', false);
+      setLoading('registerSubmitBtn', false);
     }
   };
 
-  // ── Olay Bağlama: Coin Modal ────────────────────────────────
-
-  const bindCoinModal = () => {
-    document.getElementById('closeCoinModal')?.addEventListener('click', () => {
-      ModalManager.close('coinModalOverlay');
-    });
-
-    ModalManager.closeOnOverlayClick('coinModalOverlay');
-
-    // Grafik periyot butonları
-    document.querySelectorAll('.chart-period').forEach(btn => {
-      btn.addEventListener('click', async () => {
-        document.querySelectorAll('.chart-period').forEach(b => {
-          b.classList.remove('active');
-          b.setAttribute('aria-pressed', 'false');
-        });
-        btn.classList.add('active');
-        btn.setAttribute('aria-pressed', 'true');
-
-        const coinId = document.getElementById('coinModalWatchlistBtn')?.dataset.coinId;
-        if (coinId) {
-          await ChartManager.load(coinId, btn.dataset.days, 'usd');
-        }
-      });
-    });
-
-    // Watchlist butonu (modal içindeki büyük buton)
-    document.getElementById('coinModalWatchlistBtn')?.addEventListener('click', (e) => {
-      const btn  = e.currentTarget;
-      const id   = btn.dataset.coinId;
-      const name = btn.dataset.coinName;
-      if (id) WatchlistManager.toggle(id, name);
-    });
+  // Şifre gücü
+  const calcStrength = (pwd) => {
+    let score = 0;
+    if (pwd.length >= 8)  score++;
+    if (pwd.length >= 12) score++;
+    if (/[A-Z]/.test(pwd))  score++;
+    if (/[0-9]/.test(pwd))  score++;
+    if (/[^A-Za-z0-9]/.test(pwd)) score++;
+    return score;
   };
 
-  // ── Olay Bağlama: Navbar ────────────────────────────────────
-
-  const bindNavbar = () => {
-    // Kullanıcı menüsü dropdown
-    const trigger  = document.getElementById('userMenuTrigger');
-    const dropdown = document.getElementById('userDropdown');
-
-    trigger?.addEventListener('click', () => {
-      const isOpen = !dropdown.hidden;
-      dropdown.hidden = isOpen;
-      trigger.setAttribute('aria-expanded', !isOpen);
-    });
-
-    // Dışarı tıkla
-    document.addEventListener('click', (e) => {
-      if (!document.getElementById('userMenu')?.contains(e.target)) {
-        if (dropdown) dropdown.hidden = true;
-        trigger?.setAttribute('aria-expanded', 'false');
-      }
-    });
-
-    // Çıkış
-    document.getElementById('logoutBtn')?.addEventListener('click', handleLogout);
-
-    // Watchlist'e git (menüden)
-    document.getElementById('watchlistNavBtn')?.addEventListener('click', () => {
-      if (dropdown) dropdown.hidden = true;
-      document.getElementById('watchlistSection')?.scrollIntoView({ behavior: 'smooth' });
-    });
-
-    // Hero butonları
-    document.getElementById('heroExploreBtn')?.addEventListener('click', () => {
-      document.getElementById('marketSection')?.scrollIntoView({ behavior: 'smooth' });
-    });
-
-    document.getElementById('heroWatchlistBtn')?.addEventListener('click', () => {
-      if (!AuthManager.isLoggedIn()) {
-        ModalManager.open('authModalOverlay');
-        return;
-      }
-      document.getElementById('watchlistSection')?.scrollIntoView({ behavior: 'smooth' });
-    });
-
-    // Logo tıklama
-    document.getElementById('logoHome')?.addEventListener('click', (e) => {
-      e.preventDefault();
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    });
+  const updateStrength = (val) => {
+    const score = calcStrength(val);
+    const fill  = document.getElementById('strengthFill');
+    const label = document.getElementById('strengthLabel');
+    if (!fill || !label) return;
+    const levels = [
+      { pct: '0%',   color: 'transparent', text: '' },
+      { pct: '20%',  color: '#ff5470',     text: 'Çok Zayıf' },
+      { pct: '40%',  color: '#f59e0b',     text: 'Zayıf' },
+      { pct: '60%',  color: '#f59e0b',     text: 'Orta' },
+      { pct: '80%',  color: '#00d4a0',     text: 'Güçlü' },
+      { pct: '100%', color: '#00d4a0',     text: 'Çok Güçlü' },
+    ];
+    const l = levels[Math.min(score, 5)];
+    fill.style.width      = l.pct;
+    fill.style.background = l.color;
+    label.textContent     = val ? l.text : '';
   };
 
-  // ── Olay Bağlama: Market Tablosu ───────────────────────────
+  const initEvents = () => {
+    document.getElementById('closeAuthModal')?.addEventListener('click', close);
+    overlay()?.addEventListener('click', (e) => { if (e.target === overlay()) close(); });
+    document.getElementById('loginBtn')?.addEventListener('click', ()    => open('login'));
+    document.getElementById('registerBtn')?.addEventListener('click', () => open('register'));
+    document.getElementById('switchToRegister')?.addEventListener('click', () => showTab('register'));
+    document.getElementById('switchToLogin')?.addEventListener('click',    () => showTab('login'));
+    document.getElementById('loginTab')?.addEventListener('click',    () => showTab('login'));
+    document.getElementById('registerTab')?.addEventListener('click', () => showTab('register'));
 
-  const bindMarketTable = () => {
-    // Sayfalama
-    document.getElementById('prevPage')?.addEventListener('click', () => {
-      const page = UIManager.getCurrentPage?.() || 1;
-      if (page > 1) UIManager.renderMarketTable(page - 1, currentCurrency);
+    document.getElementById('loginForm')?.addEventListener('submit',    handleLogin);
+    document.getElementById('registerForm')?.addEventListener('submit', handleRegister);
+    document.getElementById('registerPassword')?.addEventListener('input', (e) => updateStrength(e.target.value));
+
+    document.getElementById('logoutBtn')?.addEventListener('click', () => {
+      Auth.clearSession();
+      Toast.info(I18n.t('toast_logout_ok'));
+      document.getElementById('userDropdown').hidden = true;
     });
 
-    document.getElementById('nextPage')?.addEventListener('click', () => {
-      const page = UIManager.getCurrentPage?.() || 1;
-      UIManager.renderMarketTable(page + 1, currentCurrency);
+    // User menu toggle
+    document.getElementById('userMenuTrigger')?.addEventListener('click', () => {
+      const dd = document.getElementById('userDropdown');
+      const isOpen = !dd.hidden;
+      dd.hidden = isOpen;
+      document.getElementById('userMenuTrigger').setAttribute('aria-expanded', !isOpen);
     });
 
-    // Para birimi sekmeleri
-    document.querySelectorAll('.currency-tab').forEach(btn => {
+    // Şifre göster/gizle
+    document.querySelectorAll('.password-toggle').forEach(btn => {
       btn.addEventListener('click', () => {
-        document.querySelectorAll('.currency-tab').forEach(b => {
-          b.classList.remove('active');
-          b.setAttribute('aria-pressed', 'false');
-        });
-        btn.classList.add('active');
-        btn.setAttribute('aria-pressed', 'true');
-        currentCurrency = btn.dataset.currency;
-        UIManager.renderMarketTable(1, currentCurrency);
+        const input = document.getElementById(btn.dataset.target);
+        if (input) input.type = input.type === 'password' ? 'text' : 'password';
       });
     });
 
-    // Sıralanabilir başlıklar
-    document.querySelectorAll('.market-table th.sortable').forEach(th => {
-      th.addEventListener('click', () => UIManager.sortTable(th.dataset.sort));
-      th.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          UIManager.sortTable(th.dataset.sort);
-        }
-      });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && !overlay().hidden) close();
+    });
+
+    // Dropdown dışına tık → kapat
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('#userMenu')) {
+        const dd = document.getElementById('userDropdown');
+        if (dd) dd.hidden = true;
+        document.getElementById('userMenuTrigger')?.setAttribute('aria-expanded', false);
+      }
     });
   };
 
-  // ── Logout ─────────────────────────────────────────────────
-
-  const handleLogout = async (callServer = true) => {
-    const username = AuthManager.getUser()?.username;
-    AuthManager.clearSession();
-    UIManager.updateAuthUI();
-
-    // Watchlist bölümünü gizle
-    const wlSection = document.getElementById('watchlistSection');
-    if (wlSection) wlSection.hidden = true;
-
-    // Tablo watchlist butonlarını resetle
-    document.querySelectorAll('.watchlist-btn').forEach(btn => {
-      btn.classList.remove('active');
-      btn.querySelector('svg')?.setAttribute('fill', 'none');
-    });
-
-    // Kullanıcı menüsünü kapat
-    const dropdown = document.getElementById('userDropdown');
-    if (dropdown) dropdown.hidden = true;
-
-    if (username) {
-      ToastManager.show(`Güle güle, ${username}! 👋`, 'info');
-    }
-  };
-
-  // ── Otomatik Yenileme ───────────────────────────────────────
-
-  const startAutoRefresh = () => {
-    stopAutoRefresh();
-    refreshTimer = setInterval(async () => {
-      console.log('🔄 Otomatik güncelleme...');
-      await UIManager.renderMarketTable(UIManager.getCurrentPage?.() || 1, currentCurrency);
-      await UIManager.renderGlobalStats();
-      if (AuthManager.isLoggedIn()) await WatchlistManager.renderWatchlist();
-    }, CONFIG.REFRESH_INTERVAL);
-  };
-
-  const stopAutoRefresh = () => {
-    if (refreshTimer) { clearInterval(refreshTimer); refreshTimer = null; }
-  };
-
-  // ── Init ────────────────────────────────────────────────────
-
-  const init = async () => {
-    console.log('🚀 CryptoNova başlatılıyor...');
-
-    // Arka plan partikülleri
-    ParticleSystem.init();
-
-    // Olay dinleyicilerini bağla
-    bindAuthModal();
-    bindCoinModal();
-    bindNavbar();
-    bindMarketTable();
-    SearchManager.init();
-
-    // Oturumu geri yükle
-    const sessionRestored = await AuthManager.restoreSession();
-    UIManager.updateAuthUI();
-
-    // Paralel veri yükleme
-    await Promise.allSettled([
-      UIManager.renderGlobalStats(),
-      UIManager.renderTrending(),
-      UIManager.renderMarketTable(1, currentCurrency),
-      sessionRestored ? WatchlistManager.renderWatchlist() : Promise.resolve()
-    ]);
-
-    // Otomatik yenileme başlat
-    startAutoRefresh();
-
-    console.log('✅ CryptoNova hazır!');
-  };
-
-  return {
-    init,
-    handleLogout,
-    getCurrentCurrency: () => currentCurrency
-  };
+  return { open, close, initEvents };
 })();
 
-// =============================================================
-// BAŞLAT
-// =============================================================
-document.addEventListener('DOMContentLoaded', () => App.init());
+// ============================================================
+// THEME & LANG CONTROLS
+// ============================================================
+const initControls = () => {
+  // Tema
+  document.getElementById('themeToggleBtn')?.addEventListener('click', () => Theme.toggle());
+
+  // Dil
+  document.getElementById('langToggleBtn')?.addEventListener('click', () => {
+    const next = I18n.getLang() === 'tr' ? 'en' : 'tr';
+    I18n.setLang(next);
+  });
+
+  // Logo → Markets
+  document.getElementById('logoHome')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    TabRouter.goTo('markets');
+  });
+};
+
+// ============================================================
+// HISTORY MODULE
+// ============================================================
+const HistoryModule = (() => {
+  let allTransactions = [];
+  let currentFilter = 'ALL';
+  let searchQuery = '';
+
+  const initEvents = () => {
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+        e.target.classList.add('active');
+        currentFilter = e.target.dataset.filter;
+        render();
+      });
+    });
+
+    document.getElementById('historySearchInput')?.addEventListener('input', (e) => {
+      searchQuery = e.target.value.trim().toLowerCase();
+      render();
+    });
+
+    document.getElementById('csvExportBtn')?.addEventListener('click', async () => {
+      try {
+        Toast.info('Hazırlanıyor', 'CSV dosyası indiriliyor...');
+        const token = localStorage.getItem('cn_token');
+        const res = await fetch('/api/wallet/export-csv', {
+          headers: { 'Authorization': token ? `Bearer ${token}` : '' }
+        });
+        if (!res.ok) throw new Error('İndirme başarısız oldu.');
+        const blob = await res.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'islemler.csv';
+        a.click();
+        window.URL.revokeObjectURL(url);
+      } catch (err) {
+        Toast.error('Hata', err.message);
+      }
+    });
+  };
+
+  const loadData = async () => {
+    try {
+      const resp = await ApiService.getTransactions(200, 0);
+      allTransactions = resp.data || [];
+      render();
+    } catch (err) {
+      console.error('History load error:', err);
+    }
+  };
+
+  const render = () => {
+    const tbody = document.getElementById('historyTableBody');
+    const empty = document.getElementById('historyEmptyState');
+    if (!tbody || !empty) return;
+
+    let filtered = allTransactions;
+    if (currentFilter !== 'ALL') {
+      filtered = filtered.filter(t => t.type?.toUpperCase() === currentFilter);
+    }
+    if (searchQuery) {
+      filtered = filtered.filter(t => 
+        (t.coin_symbol || '').toLowerCase().includes(searchQuery) ||
+        (t.coin_id || '').toLowerCase().includes(searchQuery)
+      );
+    }
+
+    if (!filtered.length) {
+      tbody.innerHTML = '';
+      empty.hidden = false;
+      document.querySelector('.history-table-container').hidden = true;
+      return;
+    }
+
+    empty.hidden = true;
+    document.querySelector('.history-table-container').hidden = false;
+
+    tbody.innerHTML = filtered.map(t => {
+      const typeStr = (t.type || '').toUpperCase();
+      const isBuy = typeStr === 'BUY';
+      const isSell = typeStr === 'SELL';
+      const rowClass = isBuy ? 'buy-row' : (isSell ? 'sell-row' : '');
+      let typeLabel = typeStr;
+      if (isBuy) typeLabel = I18n.t('filter_buy').replace('Sadece ', '').replace(' Only', '');
+      else if (isSell) typeLabel = I18n.t('filter_sell').replace('Sadece ', '').replace(' Only', '');
+
+      const isPositive = ['BUY', 'DEPOSIT', 'TRANSFER_IN'].includes(typeStr);
+      
+      return `
+        <tr class="${rowClass}">
+          <td data-label="${I18n.t('col_asset')}">
+            <div style="font-weight:600;display:flex;align-items:center;gap:8px;">
+              <div class="transaction-item__icon ${typeStr.toLowerCase()}" style="width:24px;height:24px;font-size:12px;">${isPositive ? '📈' : '📉'}</div>
+              <div>
+                ${typeStr} ${t.coin_symbol || 'USD'}
+                <div style="font-size:0.75rem; color:var(--color-text-muted); font-weight:normal; margin-top:2px;">
+                  ${t.price_at_time ? Fmt.price(t.price_at_time) + ' fiyattan' : ''}
+                </div>
+              </div>
+            </div>
+          </td>
+          <td data-label="${I18n.t('col_type')}">
+            <span class="change-pill ${isPositive ? 'positive' : 'negative'}">${typeLabel}</span>
+          </td>
+          <td class="td-right" data-label="${I18n.t('col_amount')}">
+            ${isPositive ? '+' : '-'}${Fmt.cryptoAmount(t.amount)}
+          </td>
+          <td class="td-right" data-label="${I18n.t('col_price')}">${Fmt.price(t.price_at_time)}</td>
+          <td class="td-right" data-label="${I18n.t('col_total')}">${Fmt.price(t.total_cost)}</td>
+          <td class="td-right" data-label="${I18n.t('col_date')}">${Fmt.time(t.timestamp)}</td>
+        </tr>
+      `;
+    }).join('');
+  };
+
+  const onTabActivate = () => {
+    if (Auth.isLoggedIn()) {
+      loadData();
+    } else {
+      const tbody = document.getElementById('historyTableBody');
+      if(tbody) tbody.innerHTML = '';
+      document.getElementById('historyEmptyState').hidden = false;
+      document.querySelector('.history-table-container').hidden = true;
+    }
+  };
+
+  const init = () => {
+    initEvents();
+  };
+
+  return { init, onTabActivate, loadData };
+})();
+
+// ============================================================
+// LIVE PRICE MODULE (Binance WebSocket)
+// ============================================================
+const LivePriceModule = (() => {
+  let ws = null;
+  const init = () => connect();
+
+  const connect = () => {
+    if (ws) ws.close();
+    ws = new WebSocket('wss://stream.binance.com:9443/ws/!miniTicker@arr');
+    
+    ws.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (!Array.isArray(data)) return;
+        
+        data.forEach(ticker => {
+          const symFull = ticker.s.toLowerCase();
+          if (symFull.endsWith('usdt')) {
+            const sym = symFull.replace('usdt', '');
+            const newPrice = parseFloat(ticker.c);
+            
+            MarketsModule.updateLivePrice(sym, newPrice);
+            if (TabRouter.getCurrent() === 'trade') {
+              TradeModule.updateLivePrice(sym, newPrice);
+            }
+          }
+        });
+      } catch (err) {}
+    };
+
+    ws.onerror = (e) => console.error('Binance WS Error', e);
+    ws.onclose = () => setTimeout(connect, 5000);
+  };
+
+  return { init };
+})();
+
+// ============================================================
+// APP INIT
+// ============================================================
+const App = {
+  async init() {
+    // 1. Tema uygula
+    Theme.apply(Theme.get());
+
+    // 2. Dil uygula
+    I18n.applyTranslations();
+
+    // 3. Tab Router
+    TabRouter.init();
+
+    // 4. Auth modal & kontroller
+    AuthModal.initEvents();
+
+    // 5. Tema & dil kontrolleri
+    initControls();
+
+    // 6. Coin Modal
+    CoinModal.initEvents();
+
+    // 7. Navbar Search
+    NavSearch.init();
+
+    // 8. Modüller init
+    TradeModule.init();
+    ConverterModule.init();
+    WalletModule.init();
+    HistoryModule.init();
+    LivePriceModule.init();
+
+    // 9. Session geri yükleme
+    await Auth.tryRestoreSession();
+
+    // 10. Piyasa verilerini çek
+    await MarketsModule.init();
+
+    console.log('🚀 CryptoNova v2.0 hazır!');
+  }
+};
+
+// DOM hazır olduğunda başlat
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', () => App.init());
+} else {
+  App.init();
+}

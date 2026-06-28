@@ -1,40 +1,50 @@
 <!DOCTYPE html>
-<html lang="tr">
+<html lang="tr" data-theme="dark">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="description" content="Gerçek zamanlı kripto para piyasalarını takip edin. Bitcoin, Ethereum ve 1000+ coin için fiyat, grafik ve kişisel izleme listesi." />
-  <meta name="keywords" content="kripto, bitcoin, ethereum, piyasa, takip, fiyat, coin" />
-  <meta name="theme-color" content="#0a0a0f" />
-  <title>CryptoNova — Kripto Piyasa Platformu</title>
+  <meta name="description" content="CryptoNova — Gerçek zamanlı kripto piyasa takip, al-sat simülasyonu ve gelişmiş portföy yönetimi platformu." />
+  <meta name="keywords" content="kripto, bitcoin, ethereum, piyasa, borsa, al-sat, cüzdan, takip" />
+  <meta name="theme-color" content="#0d0d14" />
+  <title>CryptoNova — Kripto Borsa Platformu</title>
 
-  <!-- Favicon (SVG inline data URI) -->
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>₿</text></svg>" />
+  <!-- Favicon -->
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>◈</text></svg>" />
 
-  <!-- Google Fonts: Inter -->
+  <!-- Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
 
   <link rel="stylesheet" href="style.css" />
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <!-- FOUC (Theme Flash) Prevention -->
+  <script>
+    (function() {
+      var t = localStorage.getItem('cn_theme');
+      if (t) { document.documentElement.setAttribute('data-theme', t); }
+      else { document.documentElement.setAttribute('data-theme', 'dark'); }
+    })();
+  </script>
 </head>
 <body>
 
   <!-- ============================================================
-       ARKA PLAN — Animasyonlu partiküller + gradient blob
+       ARKA PLAN
   ============================================================ -->
   <div class="bg-canvas" aria-hidden="true">
     <div class="bg-blob bg-blob--1"></div>
     <div class="bg-blob bg-blob--2"></div>
     <div class="bg-blob bg-blob--3"></div>
-    <canvas id="particleCanvas"></canvas>
   </div>
 
   <!-- ============================================================
-       NAVİGASYON ÇUBUĞU
+       NAVBAR
   ============================================================ -->
   <header class="navbar" role="banner">
-    <div class="container navbar__inner">
+    <div class="navbar__inner">
 
       <!-- Logo -->
       <a href="#" class="navbar__logo" id="logoHome" aria-label="CryptoNova Ana Sayfa">
@@ -42,15 +52,33 @@
         <span class="logo-text">Crypto<span class="logo-accent">Nova</span></span>
       </a>
 
-      <!-- Küresel Piyasa Bant -->
-      <div class="navbar__ticker" id="globalTicker" role="marquee" aria-label="Piyasa özeti">
-        <div class="ticker-inner" id="tickerInner">
-          <span class="ticker-item">Yükleniyor...</span>
-        </div>
-      </div>
+      <!-- Sekmeler (Ana Navigasyon) -->
+      <nav class="tab-nav" role="tablist" aria-label="Ana navigasyon sekmeleri" id="mainTabNav">
+        <button class="tab-btn active" data-tab="markets" role="tab" aria-selected="true" aria-controls="tab-markets" id="btn-markets">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+          <span data-i18n="nav_markets">Piyasalar</span>
+        </button>
+        <button class="tab-btn" data-tab="trade" role="tab" aria-selected="false" aria-controls="tab-trade" id="btn-trade">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+          <span data-i18n="nav_trade">Al-Sat</span>
+        </button>
+        <button class="tab-btn" data-tab="converter" role="tab" aria-selected="false" aria-controls="tab-converter" id="btn-converter">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+          <span data-i18n="nav_converter">Dönüştür</span>
+        </button>
+        <button class="tab-btn" data-tab="wallet" role="tab" aria-selected="false" aria-controls="tab-wallet" id="btn-wallet">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M20 12V22H4V12"/><path d="M22 7H2v5h20V7z"/><path d="M12 22V7"/><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/></svg>
+          <span data-i18n="nav_wallet">Cüzdan</span>
+        </button>
+        <button class="tab-btn" data-tab="history" role="tab" aria-selected="false" aria-controls="tab-history" id="btn-history">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          <span data-i18n="nav_history">Geçmiş</span>
+        </button>
+      </nav>
 
-      <!-- Sağ: Arama + Auth -->
-      <div class="navbar__actions">
+      <!-- Sağ: Araçlar -->
+      <div class="navbar__tools">
+
         <!-- Arama -->
         <div class="search-wrapper" id="searchWrapper">
           <button class="icon-btn" id="searchToggleBtn" aria-label="Arama aç" aria-expanded="false">
@@ -73,205 +101,659 @@
           </div>
         </div>
 
-        <!-- Giriş Yapılmamış: Auth Butonları -->
+        <!-- Dil Değiştirici -->
+        <button class="icon-btn lang-btn" id="langToggleBtn" aria-label="Dil değiştir" title="TR / EN">
+          <span id="currentLangLabel">TR</span>
+        </button>
+
+        <!-- Tema Değiştirici -->
+        <button class="icon-btn theme-btn" id="themeToggleBtn" aria-label="Tema değiştir">
+          <svg class="icon-sun" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+          <svg class="icon-moon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        </button>
+
+        <!-- Auth: Giriş yapılmamış -->
         <div class="auth-buttons" id="authButtons">
-          <button class="btn btn--ghost btn--sm" id="loginBtn">Giriş Yap</button>
-          <button class="btn btn--primary btn--sm" id="registerBtn">Kayıt Ol</button>
+          <button class="btn btn--ghost btn--sm" id="loginBtn" data-i18n="btn_login">Giriş Yap</button>
+          <button class="btn btn--primary btn--sm" id="registerBtn" data-i18n="btn_register">Kayıt Ol</button>
         </div>
 
-        <!-- Giriş Yapılmış: Kullanıcı Menüsü -->
+        <!-- Auth: Giriş yapılmış -->
         <div class="user-menu" id="userMenu" hidden>
           <button class="user-menu__trigger" id="userMenuTrigger" aria-expanded="false" aria-haspopup="true">
             <div class="user-avatar" id="userAvatar" aria-hidden="true">U</div>
             <span class="user-name" id="navUsername">Kullanıcı</span>
-            <svg class="user-menu__chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+            <svg class="chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
           </button>
           <div class="user-dropdown" id="userDropdown" hidden role="menu">
             <div class="user-dropdown__header">
               <span class="user-dropdown__email" id="dropdownEmail"></span>
             </div>
-            <button class="user-dropdown__item" id="watchlistNavBtn" role="menuitem">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-              İzleme Listesi
-            </button>
-            <div class="user-dropdown__divider" role="separator"></div>
-            <button class="user-dropdown__item user-dropdown__item--danger" id="logoutBtn" role="menuitem">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-              Çıkış Yap
+            <button class="user-dropdown__item" id="logoutBtn" role="menuitem">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+              <span data-i18n="btn_logout">Çıkış Yap</span>
             </button>
           </div>
         </div>
-      </div><!-- /.navbar__actions -->
 
-    </div><!-- /.container -->
+      </div><!-- /.navbar__tools -->
+    </div><!-- /.navbar__inner -->
+
+    <!-- Piyasa Ticker -->
+    <div class="navbar__ticker" id="globalTicker" role="marquee" aria-label="Piyasa özeti">
+      <div class="ticker-track" id="tickerTrack">
+        <div class="ticker-inner" id="tickerInner">
+          <span class="ticker-item skeleton-inline">Yükleniyor...</span>
+        </div>
+      </div>
+    </div>
   </header>
 
   <!-- ============================================================
-       ANA İÇERİK
+       ANA İÇERİK — TAB PANELLERİ
   ============================================================ -->
   <main class="main-content" id="mainContent" role="main">
-    <div class="container">
 
-      <!-- === HERO BÖLÜMÜ === -->
-      <section class="hero" aria-labelledby="heroTitle">
-        <div class="hero__text">
-          <div class="hero__badge">
-            <span class="badge-dot" aria-hidden="true"></span>
-            Canlı Piyasa Verileri
-          </div>
-          <h1 class="hero__title" id="heroTitle">
-            Kripto Piyasasını<br />
-            <span class="gradient-text">Gerçek Zamanlı</span> Takip Et
-          </h1>
-          <p class="hero__subtitle">
-            1000+ kripto paranın anlık fiyat, hacim ve piyasa verilerini takip edin.
-            Kişisel izleme listenizi oluşturun.
-          </p>
-          <div class="hero__cta">
-            <button class="btn btn--primary btn--lg" id="heroExploreBtn">
-              Piyasayı Keşfet
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
-            </button>
-            <button class="btn btn--ghost btn--lg" id="heroWatchlistBtn">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-              İzleme Listesi
-            </button>
-          </div>
-        </div>
+    <!-- ================================================
+         📊 TAB 1: PİYASALAR
+    ================================================ -->
+    <div class="tab-panel active" id="tab-markets" role="tabpanel" aria-labelledby="btn-markets">
+      <div class="container">
 
-        <!-- Hero İstatistik Kartları -->
-        <div class="hero__stats" role="complementary" aria-label="Piyasa istatistikleri">
-          <div class="stat-card glass" id="statMarketCap">
-            <div class="stat-card__label">Toplam Piyasa Değeri</div>
-            <div class="stat-card__value skeleton-line" id="statMarketCapValue">—</div>
-            <div class="stat-card__change" id="statMarketCapChange"></div>
+        <!-- Hero -->
+        <section class="hero" aria-labelledby="heroTitle">
+          <div class="hero__text">
+            <div class="hero__badge">
+              <span class="badge-dot" aria-hidden="true"></span>
+              <span data-i18n="hero_badge">Canlı Piyasa Verileri</span>
+            </div>
+            <h1 class="hero__title" id="heroTitle">
+              <span data-i18n="hero_title_1">Kripto Piyasasını</span><br/>
+              <span class="gradient-text" data-i18n="hero_title_2">Gerçek Zamanlı</span>
+              <span data-i18n="hero_title_3"> Takip Et</span>
+            </h1>
+            <p class="hero__subtitle" data-i18n="hero_subtitle">
+              100+ kripto paranın anlık fiyat, hacim ve piyasa verilerini takip edin.
+            </p>
           </div>
-          <div class="stat-card glass" id="statVolume">
-            <div class="stat-card__label">24s Hacim</div>
-            <div class="stat-card__value skeleton-line" id="statVolumeValue">—</div>
-          </div>
-          <div class="stat-card glass" id="statBtcDom">
-            <div class="stat-card__label">BTC Dominance</div>
-            <div class="stat-card__value skeleton-line" id="statBtcDomValue">—</div>
-          </div>
-          <div class="stat-card glass" id="statCoins">
-            <div class="stat-card__label">Aktif Coin</div>
-            <div class="stat-card__value skeleton-line" id="statCoinsValue">—</div>
-          </div>
-        </div>
-      </section>
 
-      <!-- === TREND COİNLER === -->
-      <section class="section" aria-labelledby="trendingTitle">
-        <div class="section__header">
-          <div>
-            <h2 class="section__title" id="trendingTitle">
-              <span class="section-icon" aria-hidden="true">🔥</span>
-              Trend Coinler
-            </h2>
-            <p class="section__subtitle">Son 24 saatte en çok aranan coinler</p>
-          </div>
-        </div>
-        <div class="trending-grid" id="trendingGrid" role="list" aria-label="Trend coinler">
-          <!-- Skeleton loading -->
-          <div class="trending-card skeleton-card" aria-hidden="true"></div>
-          <div class="trending-card skeleton-card" aria-hidden="true"></div>
-          <div class="trending-card skeleton-card" aria-hidden="true"></div>
-          <div class="trending-card skeleton-card" aria-hidden="true"></div>
-          <div class="trending-card skeleton-card" aria-hidden="true"></div>
-          <div class="trending-card skeleton-card" aria-hidden="true"></div>
-          <div class="trending-card skeleton-card" aria-hidden="true"></div>
-        </div>
-      </section>
-
-      <!-- === İZLEME LİSTESİ BÖLÜMÜ (yalnızca giriş yapılınca görünür) === -->
-      <section class="section watchlist-section" id="watchlistSection" hidden aria-labelledby="watchlistTitle">
-        <div class="section__header">
-          <div>
-            <h2 class="section__title" id="watchlistTitle">
-              <span class="section-icon" aria-hidden="true">⭐</span>
-              İzleme Listem
-            </h2>
-            <p class="section__subtitle">Favori coinlerinizi buradan takip edin</p>
-          </div>
-        </div>
-        <div class="watchlist-grid" id="watchlistGrid" role="list" aria-label="İzleme listesi coinleri">
-          <!-- Dinamik olarak doldurulur -->
-        </div>
-        <div class="watchlist-empty" id="watchlistEmpty" hidden>
-          <div class="empty-icon" aria-hidden="true">🔍</div>
-          <p>İzleme listeniz boş.</p>
-          <p class="empty-sub">Piyasa tablosundan ★ ikonuna tıklayarak coin ekleyebilirsiniz.</p>
-        </div>
-      </section>
-
-      <!-- === PİYASA TABLOSU === -->
-      <section class="section" id="marketSection" aria-labelledby="marketTitle">
-        <div class="section__header">
-          <div>
-            <h2 class="section__title" id="marketTitle">
-              <span class="section-icon" aria-hidden="true">📊</span>
-              Piyasa Tablosu
-            </h2>
-            <p class="section__subtitle">Piyasa değerine göre sıralanmış coinler</p>
-          </div>
-          <!-- Filtre & Sıralama Araçları -->
-          <div class="market-controls">
-            <div class="currency-tabs" role="group" aria-label="Para birimi seçimi">
-              <button class="currency-tab active" data-currency="usd" aria-pressed="true">USD</button>
-              <button class="currency-tab" data-currency="eur" aria-pressed="false">EUR</button>
-              <button class="currency-tab" data-currency="try" aria-pressed="false">TRY</button>
+          <!-- İstatistik Kartları -->
+          <div class="hero__stats" role="complementary" aria-label="Piyasa istatistikleri">
+            <div class="stat-card glass">
+              <div class="stat-card__label" data-i18n="stat_mcap">Toplam Piyasa Değeri</div>
+              <div class="stat-card__value" id="statMarketCapValue">—</div>
+              <div class="stat-card__change" id="statMarketCapChange"></div>
+            </div>
+            <div class="stat-card glass">
+              <div class="stat-card__label" data-i18n="stat_volume">24s Hacim</div>
+              <div class="stat-card__value" id="statVolumeValue">—</div>
+            </div>
+            <div class="stat-card glass">
+              <div class="stat-card__label" data-i18n="stat_btc_dom">BTC Dominance</div>
+              <div class="stat-card__value" id="statBtcDomValue">—</div>
+            </div>
+            <div class="stat-card glass">
+              <div class="stat-card__label" data-i18n="stat_coins">Aktif Coin</div>
+              <div class="stat-card__value" id="statCoinsValue">—</div>
             </div>
           </div>
+        </section>
+
+        <!-- Trend Coinler -->
+        <section class="section" aria-labelledby="trendingTitle">
+          <div class="section__header">
+            <div>
+              <h2 class="section__title" id="trendingTitle">
+                <span class="section-icon" aria-hidden="true">🔥</span>
+                <span data-i18n="trending_title">Trend Coinler</span>
+              </h2>
+              <p class="section__subtitle" data-i18n="trending_subtitle">Son 24 saatte en çok aranan coinler</p>
+            </div>
+          </div>
+          <div class="trending-grid" id="trendingGrid" role="list" aria-label="Trend coinler">
+            <div class="trending-card skeleton-card" aria-hidden="true"></div>
+            <div class="trending-card skeleton-card" aria-hidden="true"></div>
+            <div class="trending-card skeleton-card" aria-hidden="true"></div>
+            <div class="trending-card skeleton-card" aria-hidden="true"></div>
+            <div class="trending-card skeleton-card" aria-hidden="true"></div>
+            <div class="trending-card skeleton-card" aria-hidden="true"></div>
+            <div class="trending-card skeleton-card" aria-hidden="true"></div>
+          </div>
+        </section>
+
+        <!-- Piyasa Tablosu -->
+        <section class="section" id="marketSection" aria-labelledby="marketTitle">
+          <div class="section__header">
+            <div>
+              <h2 class="section__title" id="marketTitle">
+                <span class="section-icon" aria-hidden="true">📊</span>
+                <span data-i18n="market_title">Piyasa Tablosu</span>
+              </h2>
+              <p class="section__subtitle" data-i18n="market_subtitle">Piyasa değerine göre sıralanmış coinler</p>
+            </div>
+            <div class="market-controls">
+              <!-- Arama (tablo içi) -->
+              <div class="table-search-wrap">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+                <input type="search" id="tableSearchInput" class="table-search-input" placeholder="Coin ara..." autocomplete="off" aria-label="Tabloda coin ara" />
+              </div>
+              <!-- Para birimi -->
+              <div class="currency-tabs" role="group" aria-label="Para birimi">
+                <button class="currency-tab active" data-currency="usd" aria-pressed="true">USD</button>
+                <button class="currency-tab" data-currency="eur" aria-pressed="false">EUR</button>
+                <button class="currency-tab" data-currency="try" aria-pressed="false">TRY</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Tablo -->
+          <div class="table-wrapper">
+            <table class="market-table" id="marketTable" aria-label="Kripto para piyasa tablosu">
+              <thead>
+                <tr>
+                  <th scope="col" class="col-rank">#</th>
+                  <th scope="col" class="col-coin" data-i18n="th_coin">Coin</th>
+                  <th scope="col" class="col-price sortable" data-sort="price" tabindex="0" aria-sort="none" data-i18n="th_price">Fiyat</th>
+                  <th scope="col" class="col-1h sortable" data-sort="1h" tabindex="0" aria-sort="none">1s %</th>
+                  <th scope="col" class="col-24h sortable" data-sort="24h" tabindex="0" aria-sort="none">24s %</th>
+                  <th scope="col" class="col-7d sortable" data-sort="7d" tabindex="0" aria-sort="none">7g %</th>
+                  <th scope="col" class="col-mcap sortable" data-sort="mcap" tabindex="0" aria-sort="none" data-i18n="th_mcap">Piyasa Değeri</th>
+                  <th scope="col" class="col-volume" data-i18n="th_volume">24s Hacim</th>
+                  <th scope="col" class="col-spark" data-i18n="th_chart">7 Günlük</th>
+                  <th scope="col" class="col-action"><span class="sr-only">İşlem</span></th>
+                </tr>
+              </thead>
+              <tbody id="marketTableBody" aria-live="polite" aria-label="Coin listesi">
+                <tr class="skeleton-row" aria-hidden="true"><td colspan="10"><div class="skeleton-line"></div></td></tr>
+                <tr class="skeleton-row" aria-hidden="true"><td colspan="10"><div class="skeleton-line"></div></td></tr>
+                <tr class="skeleton-row" aria-hidden="true"><td colspan="10"><div class="skeleton-line"></div></td></tr>
+                <tr class="skeleton-row" aria-hidden="true"><td colspan="10"><div class="skeleton-line"></div></td></tr>
+                <tr class="skeleton-row" aria-hidden="true"><td colspan="10"><div class="skeleton-line"></div></td></tr>
+                <tr class="skeleton-row" aria-hidden="true"><td colspan="10"><div class="skeleton-line"></div></td></tr>
+                <tr class="skeleton-row" aria-hidden="true"><td colspan="10"><div class="skeleton-line"></div></td></tr>
+                <tr class="skeleton-row" aria-hidden="true"><td colspan="10"><div class="skeleton-line"></div></td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Sayfalama -->
+          <div class="pagination" id="pagination" aria-label="Sayfalama">
+            <button class="btn btn--ghost btn--sm" id="prevPage" disabled aria-label="Önceki sayfa">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+              <span data-i18n="btn_prev">Önceki</span>
+            </button>
+            <span class="pagination__info" id="pageInfo" aria-live="polite">Sayfa 1</span>
+            <button class="btn btn--ghost btn--sm" id="nextPage" aria-label="Sonraki sayfa">
+              <span data-i18n="btn_next">Sonraki</span>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+            </button>
+          </div>
+        </section>
+
+      </div><!-- /.container -->
+    </div><!-- /#tab-markets -->
+
+    <!-- ================================================
+         💱 TAB 2: AL-SAT
+    ================================================ -->
+    <div class="tab-panel" id="tab-trade" role="tabpanel" aria-labelledby="btn-trade" hidden>
+      <div class="container">
+        <div class="tab-header">
+          <h2 class="tab-page-title">
+            <span class="gradient-text" data-i18n="trade_title">Hızlı Al-Sat</span>
+          </h2>
+          <p class="tab-page-subtitle" data-i18n="trade_subtitle">Anlık piyasa fiyatından kripto para alın veya satın</p>
         </div>
 
-        <!-- Tablo -->
-        <div class="table-wrapper">
-          <table class="market-table" id="marketTable" aria-label="Kripto para piyasa tablosu">
+        <div class="trade-layout">
+          <!-- Sol: Form -->
+          <div class="trade-card glass">
+            <!-- Tip Seçici -->
+            <div class="trade-type-tabs" role="group" aria-label="İşlem tipi">
+              <button class="trade-type-btn active buy-mode" id="tradeBuyBtn" data-type="buy" aria-pressed="true">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+                <span data-i18n="btn_buy">Al</span>
+              </button>
+              <button class="trade-type-btn sell-mode" id="tradeSellBtn" data-type="sell" aria-pressed="false">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/><polyline points="17 18 23 18 23 12"/></svg>
+                <span data-i18n="btn_sell">Sat</span>
+              </button>
+            </div>
+
+            <!-- Coin Seçimi -->
+            <div class="form-group">
+              <label class="form-label" for="tradeCoinSelect" data-i18n="label_coin">Coin Seç</label>
+              <div class="custom-select-wrapper">
+                <select class="form-select" id="tradeCoinSelect" aria-label="Coin seç">
+                  <option value="">Yükleniyor...</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Anlık Fiyat -->
+            <div class="price-display" id="tradePriceDisplay">
+              <span class="price-display__label" data-i18n="label_current_price">Anlık Fiyat</span>
+              <span class="price-display__value" id="tradeCurrentPrice">—</span>
+              <span class="price-display__change" id="tradeCurrentChange"></span>
+            </div>
+
+            <!-- Miktar -->
+            <div class="form-group">
+              <label class="form-label" for="tradeAmount" data-i18n="label_amount">Miktar</label>
+              <div class="input-with-suffix">
+                <input
+                  type="number"
+                  id="tradeAmount"
+                  class="form-input"
+                  placeholder="0.00"
+                  min="0"
+                  step="any"
+                  aria-label="Miktar"
+                />
+                <span class="input-suffix" id="tradeAmountSuffix">BTC</span>
+              </div>
+              <!-- Hızlı Miktar -->
+              <div class="quick-amounts" role="group" aria-label="Hızlı miktar seçimi">
+                <button class="quick-btn" data-pct="25">%25</button>
+                <button class="quick-btn" data-pct="50">%50</button>
+                <button class="quick-btn" data-pct="75">%75</button>
+                <button class="quick-btn" data-pct="100">MAX</button>
+              </div>
+            </div>
+
+            <!-- Özet -->
+            <div class="trade-summary glass-inner">
+              <div class="trade-summary__row">
+                <span data-i18n="label_price">Fiyat</span>
+                <span id="summaryPrice">—</span>
+              </div>
+              <div class="trade-summary__row">
+                <span data-i18n="label_amount">Miktar</span>
+                <span id="summaryAmount">—</span>
+              </div>
+              <div class="trade-summary__divider"></div>
+              <div class="trade-summary__row trade-summary__total">
+                <span data-i18n="label_total">Toplam</span>
+                <span id="summaryTotal">—</span>
+              </div>
+            </div>
+
+            <!-- İşlem Butonu -->
+            <button class="btn btn--trade btn--buy btn--full" id="tradeSubmitBtn" disabled>
+              <span class="btn-text" data-i18n="btn_buy_submit">Al</span>
+              <span class="btn-spinner" aria-hidden="true" hidden></span>
+            </button>
+
+            <!-- Giriş uyarısı -->
+            <p class="trade-auth-notice" id="tradeAuthNotice" hidden>
+              <span data-i18n="trade_login_notice">Al-Sat yapabilmek için</span>
+              <button class="link-btn" id="tradeLoginLink" data-i18n="btn_login">giriş yapın</button>
+            </p>
+          </div><!-- /.trade-card -->
+
+          <!-- Sağ: Mevcut Bakiye & Son İşlemler -->
+          <div class="trade-right">
+            <div class="balance-panel glass" id="tradeBalancePanel">
+              <div class="balance-panel__title">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 12V22H4V12"/><path d="M22 7H2v5h20V7z"/></svg>
+                <span data-i18n="label_balance">Bakiyeniz</span>
+              </div>
+              <div class="balance-panel__body" id="tradeBalanceBody">
+                <p class="balance-panel__login" data-i18n="balance_login_notice">Bakiyenizi görmek için giriş yapın</p>
+              </div>
+            </div>
+
+            <div class="recent-trades glass" id="recentTradesPanel">
+              <div class="recent-trades__title" data-i18n="recent_trades">Son İşlemler</div>
+              <div class="recent-trades__body" id="recentTradesBody">
+                <p class="empty-notice" data-i18n="no_transactions">Henüz işlem yok</p>
+              </div>
+            </div>
+          </div>
+
+        </div><!-- /.trade-layout -->
+      </div><!-- /.container -->
+    </div><!-- /#tab-trade -->
+
+    <!-- ================================================
+         🔄 TAB 3: DÖNÜŞTÜRÜcÜ
+    ================================================ -->
+    <div class="tab-panel" id="tab-converter" role="tabpanel" aria-labelledby="btn-converter" hidden>
+      <div class="container">
+        <div class="tab-header">
+          <h2 class="tab-page-title">
+            <span class="gradient-text" data-i18n="converter_title">Kripto Dönüştürücü</span>
+          </h2>
+          <p class="tab-page-subtitle" data-i18n="converter_subtitle">Anlık kurlarla kripto ve fiat para birimlerini dönüştürün</p>
+        </div>
+
+        <div class="converter-layout">
+          <div class="converter-card glass">
+
+            <!-- From -->
+            <div class="converter-field">
+              <label class="form-label" for="converterFromAmount" data-i18n="label_from">Kaynak</label>
+              <div class="converter-input-group">
+                <input
+                  type="number"
+                  id="converterFromAmount"
+                  class="form-input converter-amount"
+                  placeholder="0.00"
+                  value="1"
+                  min="0"
+                  step="any"
+                  aria-label="Kaynak miktar"
+                />
+                <select class="form-select converter-currency" id="converterFromCurrency" aria-label="Kaynak para birimi">
+                  <option value="bitcoin" data-symbol="BTC" data-isfiat="false">BTC — Bitcoin</option>
+                  <option value="ethereum" data-symbol="ETH" data-isfiat="false">ETH — Ethereum</option>
+                  <option value="usd" data-symbol="USD" data-isfiat="true" selected>USD — Dolar</option>
+                  <option value="eur" data-symbol="EUR" data-isfiat="true">EUR — Euro</option>
+                  <option value="try" data-symbol="TRY" data-isfiat="true">TRY — Türk Lirası</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Swap Butonu -->
+            <div class="converter-swap-wrap">
+              <button class="swap-btn" id="converterSwapBtn" aria-label="Çevir">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+              </button>
+            </div>
+
+            <!-- To -->
+            <div class="converter-field">
+              <label class="form-label" for="converterToAmount" data-i18n="label_to">Hedef</label>
+              <div class="converter-input-group">
+                <input
+                  type="number"
+                  id="converterToAmount"
+                  class="form-input converter-amount"
+                  placeholder="0.00"
+                  readonly
+                  aria-label="Hedef miktar"
+                />
+                <select class="form-select converter-currency" id="converterToCurrency" aria-label="Hedef para birimi">
+                  <option value="bitcoin" data-symbol="BTC" data-isfiat="false" selected>BTC — Bitcoin</option>
+                  <option value="ethereum" data-symbol="ETH" data-isfiat="false">ETH — Ethereum</option>
+                  <option value="usd" data-symbol="USD" data-isfiat="true">USD — Dolar</option>
+                  <option value="eur" data-symbol="EUR" data-isfiat="true">EUR — Euro</option>
+                  <option value="try" data-symbol="TRY" data-isfiat="true">TRY — Türk Lirası</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Kur Bilgisi -->
+            <div class="converter-rate glass-inner" id="converterRate">
+              <div class="converter-rate__loading" id="converterRateLoading">
+                <div class="spinner-small"></div>
+                <span data-i18n="loading">Hesaplanıyor...</span>
+              </div>
+              <div class="converter-rate__info" id="converterRateInfo" hidden>
+                <span id="converterRateText">1 USD = — BTC</span>
+                <span class="converter-rate__update" id="converterRateUpdate"></span>
+              </div>
+            </div>
+
+            <!-- Hızlı Seçenekler -->
+            <div class="converter-quick" role="group" aria-label="Hızlı dönüşüm">
+              <span class="converter-quick__label" data-i18n="quick_convert">Hızlı:</span>
+              <button class="quick-btn" data-val="100">100</button>
+              <button class="quick-btn" data-val="1000">1K</button>
+              <button class="quick-btn" data-val="10000">10K</button>
+              <button class="quick-btn" data-val="100000">100K</button>
+            </div>
+
+          </div><!-- /.converter-card -->
+
+          <!-- Sağ: Piyasa Kuru Tablosu -->
+          <div class="converter-market-panel glass">
+            <div class="converter-market-panel__title" data-i18n="market_rates">Piyasa Kurları</div>
+            <div class="converter-market-panel__body" id="converterMarketRates">
+              <div class="skeleton-card" style="height:40px;margin-bottom:8px"></div>
+              <div class="skeleton-card" style="height:40px;margin-bottom:8px"></div>
+              <div class="skeleton-card" style="height:40px;margin-bottom:8px"></div>
+              <div class="skeleton-card" style="height:40px;margin-bottom:8px"></div>
+              <div class="skeleton-card" style="height:40px"></div>
+            </div>
+          </div>
+
+        </div><!-- /.converter-layout -->
+      </div><!-- /.container -->
+    </div><!-- /#tab-converter -->
+
+    <!-- ================================================
+         💳 TAB 4: CÜZDAN
+    ================================================ -->
+    <div class="tab-panel" id="tab-wallet" role="tabpanel" aria-labelledby="btn-wallet" hidden>
+      <div class="container">
+        <div class="tab-header">
+          <h2 class="tab-page-title">
+            <span class="gradient-text" data-i18n="wallet_title">Cüzdanım</span>
+          </h2>
+          <p class="tab-page-subtitle" data-i18n="wallet_subtitle">Bakiyelerinizi yönetin, yatırın veya çekin</p>
+        </div>
+
+        <!-- Giriş yapılmamış uyarısı -->
+        <div class="wallet-auth-notice glass" id="walletAuthNotice">
+          <div class="wallet-auth-notice__icon" aria-hidden="true">🔐</div>
+          <p data-i18n="wallet_login_notice">Cüzdanınıza erişmek için giriş yapmanız gerekiyor.</p>
+          <button class="btn btn--primary" id="walletLoginBtn" data-i18n="btn_login">Giriş Yap</button>
+        </div>
+
+        <!-- Cüzdan İçeriği (giriş yapıldıktan sonra) -->
+        <div id="walletContent" hidden>
+
+          <!-- Toplam değer kartı -->
+          <div class="wallet-total-card glass">
+            <div class="wallet-total-card__label" data-i18n="total_portfolio">Toplam Portföy Değeri</div>
+            <div class="wallet-total-card__value" id="walletTotalValue">$0.00</div>
+            <div class="wallet-total-card__pnl" id="walletTotalPnl"></div>
+            <div class="wallet-total-card__sub" id="walletTotalSub"></div>
+          </div>
+
+          <div class="wallet-layout">
+
+            <!-- Sol: Bakiyeler + İşlem Formları -->
+            <div class="wallet-left">
+
+              <!-- Bakiye Listesi -->
+              <div class="wallet-balances trade-card glass">
+                <div class="wallet-section-title">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>
+                  <span data-i18n="my_assets">Varlıklarım</span>
+                </div>
+                <!-- CHART YERİ -->
+                <div class="wallet-chart-container" style="position:relative; height:200px; width:100%; margin-bottom:16px;">
+                  <canvas id="walletChart"></canvas>
+                </div>
+                <div id="walletBalanceList">
+                  <div class="skeleton-card" style="height:56px;margin-bottom:8px"></div>
+                  <div class="skeleton-card" style="height:56px;margin-bottom:8px"></div>
+                  <div class="skeleton-card" style="height:56px"></div>
+                </div>
+              </div>
+
+              <!-- Yatır / Çek Formları -->
+              <div class="deposit-withdraw-tabs trade-card glass">
+                <div class="dw-tab-nav" role="tablist">
+                  <button class="dw-tab-btn active" data-dwtab="deposit" role="tab" aria-selected="true">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+                    <span data-i18n="btn_deposit">Para Yatır</span>
+                  </button>
+                  <button class="dw-tab-btn" data-dwtab="withdraw" role="tab" aria-selected="false">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/><polyline points="17 18 23 18 23 12"/></svg>
+                    <span data-i18n="btn_withdraw">Para Çek</span>
+                  </button>
+                  <button class="dw-tab-btn" data-dwtab="transfer" role="tab" aria-selected="false">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
+                    <span data-i18n="btn_transfer">Transfer</span>
+                  </button>
+                </div>
+
+                <!-- Yatırma -->
+                <div class="dw-panel" id="depositPanel" role="tabpanel">
+                  <div class="form-group">
+                    <label class="form-label" for="depositAmount" data-i18n="label_amount_usd">Miktar (USD)</label>
+                    <div class="input-with-suffix">
+                      <input type="number" id="depositAmount" class="form-input" placeholder="100.00" min="1" step="0.01" />
+                      <span class="input-suffix">USD</span>
+                    </div>
+                  </div>
+                  <div class="quick-amounts" role="group" style="margin-bottom: 24px;">
+                    <button class="quick-btn" data-amount="100">$100</button>
+                    <button class="quick-btn" data-amount="500">$500</button>
+                    <button class="quick-btn" data-amount="1000">$1K</button>
+                    <button class="quick-btn" data-amount="5000">$5K</button>
+                  </div>
+                  <button class="btn btn--trade btn--buy btn--full" id="depositBtn" data-i18n="btn_deposit_submit">Yatır</button>
+                </div>
+
+                <!-- Çekme -->
+                <div class="dw-panel" id="withdrawPanel" role="tabpanel" hidden>
+                  <div class="form-group">
+                    <label class="form-label" for="withdrawAmount" data-i18n="label_amount_usd">Miktar (USD)</label>
+                    <div class="input-with-suffix">
+                      <input type="number" id="withdrawAmount" class="form-input" placeholder="100.00" min="1" step="0.01" />
+                      <span class="input-suffix">USD</span>
+                    </div>
+                    <p class="form-hint" style="margin-bottom: 24px;">
+                      <span data-i18n="label_available">Kullanılabilir:</span>
+                      <strong id="withdrawAvailable">$0.00</strong>
+                    </p>
+                  </div>
+                  <button class="btn btn--trade btn--buy btn--full" id="withdrawBtn" data-i18n="btn_withdraw_submit">Çek</button>
+                </div>
+
+                <!-- Transfer -->
+                <div class="dw-panel" id="transferPanel" role="tabpanel" hidden>
+                  <div class="form-group">
+                    <label class="form-label" for="transferEmail" data-i18n="label_receiver_email">Alıcı Email</label>
+                    <input type="email" id="transferEmail" class="form-input" placeholder="kullanici@mail.com" />
+                  </div>
+                  <div class="form-group" style="display:flex; gap:12px;">
+                    <div style="flex:1;">
+                      <label class="form-label" for="transferCurrency" data-i18n="label_currency">Varlık</label>
+                      <select id="transferCurrency" class="form-input">
+                        <!-- JS ile doldurulacak -->
+                      </select>
+                    </div>
+                    <div style="flex:2;">
+                      <label class="form-label" for="transferAmount" data-i18n="label_amount">Miktar</label>
+                      <input type="number" id="transferAmount" class="form-input" placeholder="10.00" min="0.0001" step="any" />
+                    </div>
+                  </div>
+                  <div style="margin-top: 24px; padding-bottom: 12px;">
+                    <button class="btn btn--trade btn--buy btn--full" id="transferBtn" data-i18n="btn_transfer_submit">Gönder</button>
+                  </div>
+                </div>
+              </div>
+
+            </div><!-- /.wallet-left -->
+
+            <!-- Sağ: İşlem Geçmişi & Staking -->
+            <div class="wallet-right">
+
+              <!-- STAKING (VADELİ) -->
+              <div class="staking-panel trade-card glass" style="margin-bottom: 24px;">
+                <div class="wallet-section-title">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                  <span data-i18n="staking_title">Staking (Kazan)</span>
+                </div>
+                <div id="activeStakingContainer" hidden>
+                  <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
+                    <span data-i18n="staking_active_amount" style="color:var(--color-text-muted);">Kilitli Miktar:</span>
+                    <strong id="stakedAmountLabel">0.00</strong>
+                  </div>
+                  <div style="display:flex; justify-content:space-between; margin-bottom:12px;">
+                    <span data-i18n="staking_earned" style="color:var(--color-text-muted);">Biriken Faiz:</span>
+                    <strong id="stakedEarnedLabel" class="color-positive">0.000000</strong>
+                  </div>
+                  <button class="btn btn--ghost btn--full" id="unstakeBtn" data-i18n="btn_unstake">Stake Boz & Faizi Al</button>
+                </div>
+                <div id="newStakingContainer">
+                  <div class="form-group" style="display:flex; gap:12px;">
+                    <div style="flex:1;">
+                      <select id="stakeCurrency" class="form-input">
+                        <!-- JS ile doldurulacak -->
+                      </select>
+                    </div>
+                    <div style="flex:2;">
+                      <input type="number" id="stakeAmount" class="form-input" placeholder="Miktar" min="0.0001" step="any" />
+                    </div>
+                  </div>
+                  <p class="form-hint" style="margin-bottom:12px; color:var(--color-positive); font-weight:500;">%12 APY (Yıllık Getiri)</p>
+                  <button class="btn btn--primary btn--full" id="stakeBtn" data-i18n="btn_stake">Varlığı Kilitle (Stake)</button>
+                </div>
+              </div>
+
+
+            </div>
+
+          </div><!-- /.wallet-layout -->
+        </div><!-- /#walletContent -->
+
+      </div><!-- /.container -->
+    </div><!-- /#tab-wallet -->
+
+    <!-- ================================================
+         ⏳ TAB 5: İŞLEM GEÇMİŞİ (HISTORY)
+    ================================================ -->
+    <div class="tab-panel" id="tab-history" role="tabpanel" aria-labelledby="btn-history" hidden>
+      <div class="container">
+        <div class="tab-header">
+          <h2 class="tab-page-title">
+            <span class="gradient-text" data-i18n="history_title">İşlem Geçmişi</span>
+          </h2>
+          <p class="tab-page-subtitle" data-i18n="history_subtitle">Tüm alım ve satım işlemlerinizin finansal dökümü</p>
+        </div>
+
+        <div class="history-controls glass">
+          <div class="history-filters" role="group">
+            <button class="filter-btn active" data-filter="ALL" data-i18n="filter_all">Tümü</button>
+            <button class="filter-btn" data-filter="BUY" data-i18n="filter_buy">Sadece Alış</button>
+            <button class="filter-btn" data-filter="SELL" data-i18n="filter_sell">Sadece Satış</button>
+          </div>
+          <div style="display:flex; gap:12px;">
+            <div class="search-input-wrap history-search-wrap">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+              <input type="text" id="historySearchInput" class="search-input" placeholder="Coin ara (örn: BTC)" aria-label="Geçmişte coin ara" />
+            </div>
+            <button class="btn btn--primary" id="csvExportBtn" data-i18n="btn_export_csv" style="white-space:nowrap; padding: 0 16px; border-radius:var(--radius-sm); font-weight:600;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>CSV İndir
+            </button>
+          </div>
+        </div>
+
+        <div class="history-table-container glass">
+          <table class="market-table" aria-label="İşlem geçmişi tablosu">
             <thead>
               <tr>
-                <th scope="col" class="col-rank">#</th>
-                <th scope="col" class="col-coin">Coin</th>
-                <th scope="col" class="col-price sortable" data-sort="price" tabindex="0" aria-sort="none">Fiyat</th>
-                <th scope="col" class="col-1h sortable" data-sort="1h" tabindex="0" aria-sort="none">1s %</th>
-                <th scope="col" class="col-24h sortable" data-sort="24h" tabindex="0" aria-sort="none">24s %</th>
-                <th scope="col" class="col-7d sortable" data-sort="7d" tabindex="0" aria-sort="none">7g %</th>
-                <th scope="col" class="col-mcap sortable" data-sort="mcap" tabindex="0" aria-sort="none">Piyasa Değeri</th>
-                <th scope="col" class="col-volume">24s Hacim</th>
-                <th scope="col" class="col-spark">7 Günlük</th>
-                <th scope="col" class="col-action"><span class="sr-only">İşlem</span></th>
+                <th data-i18n="col_asset">Varlık</th>
+                <th data-i18n="col_type">Tip</th>
+                <th class="td-right" data-i18n="col_amount">Miktar</th>
+                <th class="td-right" data-i18n="col_price">İşlem Fiyatı</th>
+                <th class="td-right" data-i18n="col_total">Toplam Tutarı</th>
+                <th class="td-right" data-i18n="col_date">Tarih</th>
               </tr>
             </thead>
-            <tbody id="marketTableBody" aria-live="polite" aria-label="Coin listesi">
-              <!-- Skeleton rows -->
-              <tr class="skeleton-row" aria-hidden="true"><td colspan="10"><div class="skeleton-line"></div></td></tr>
-              <tr class="skeleton-row" aria-hidden="true"><td colspan="10"><div class="skeleton-line"></div></td></tr>
-              <tr class="skeleton-row" aria-hidden="true"><td colspan="10"><div class="skeleton-line"></div></td></tr>
-              <tr class="skeleton-row" aria-hidden="true"><td colspan="10"><div class="skeleton-line"></div></td></tr>
-              <tr class="skeleton-row" aria-hidden="true"><td colspan="10"><div class="skeleton-line"></div></td></tr>
-              <tr class="skeleton-row" aria-hidden="true"><td colspan="10"><div class="skeleton-line"></div></td></tr>
-              <tr class="skeleton-row" aria-hidden="true"><td colspan="10"><div class="skeleton-line"></div></td></tr>
-              <tr class="skeleton-row" aria-hidden="true"><td colspan="10"><div class="skeleton-line"></div></td></tr>
+            <tbody id="historyTableBody">
+              <!-- JS ile render edilecek -->
             </tbody>
           </table>
         </div>
 
-        <!-- Sayfalama -->
-        <div class="pagination" id="pagination" aria-label="Sayfalama">
-          <button class="btn btn--ghost btn--sm" id="prevPage" disabled aria-label="Önceki sayfa">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
-            Önceki
-          </button>
-          <span class="pagination__info" id="pageInfo" aria-live="polite">Sayfa 1</span>
-          <button class="btn btn--ghost btn--sm" id="nextPage" aria-label="Sonraki sayfa">
-            Sonraki
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
-          </button>
+        <!-- Empty State -->
+        <div id="historyEmptyState" class="empty-state glass" hidden>
+          <div class="empty-state__icon">📭</div>
+          <p class="empty-state__title" data-i18n="history_empty_title">Kayıt Bulunamadı</p>
+          <p class="empty-state__desc" data-i18n="history_empty_desc">Henüz bir işleminiz bulunmuyor veya aradığınız kriterde sonuç yok.</p>
         </div>
-      </section>
 
-    </div><!-- /.container -->
-  </main>
+      </div>
+    </div><!-- /#tab-history -->
+
+  </main><!-- /.main-content -->
 
   <!-- ============================================================
        FOOTER
@@ -283,54 +765,51 @@
         <span class="logo-text">Crypto<span class="logo-accent">Nova</span></span>
       </div>
       <p class="footer__copy">
-        Veriler CoinGecko API aracılığıyla sağlanmaktadır.
+        <span data-i18n="footer_powered">Veriler CoinGecko API ile sağlanmaktadır.</span>
         <span class="footer__live-dot" aria-hidden="true"></span>
-        <span id="lastUpdateTime">—</span> güncellendi
+        <span id="lastUpdateTime">—</span>
+        <span data-i18n="footer_updated"> güncellendi</span>
       </p>
-      <p class="footer__disclaimer">
-        Bu uygulama yatırım tavsiyesi vermez. Kripto para piyasaları yüksek risk içerir.
+      <p class="footer__disclaimer" data-i18n="footer_disclaimer">
+        Bu uygulama yatırım tavsiyesi vermez. Kripto piyasaları yüksek risk içerir.
       </p>
     </div>
   </footer>
 
   <!-- ============================================================
-       AUTH MODAL (Login / Register)
+       AUTH MODAL
   ============================================================ -->
   <div class="modal-overlay" id="authModalOverlay" role="dialog" aria-modal="true" aria-labelledby="authModalTitle" hidden>
     <div class="modal auth-modal" id="authModal">
-
       <button class="modal__close" id="closeAuthModal" aria-label="Modalı kapat">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       </button>
 
-      <!-- Modal Başlık -->
       <div class="auth-modal__header">
         <span class="logo-icon" aria-hidden="true">◈</span>
-        <h2 class="auth-modal__title" id="authModalTitle">CryptoNova'ya Hoş Geldiniz</h2>
-        <p class="auth-modal__subtitle">Hesabınıza giriş yapın veya yeni hesap oluşturun</p>
+        <h2 class="auth-modal__title" id="authModalTitle" data-i18n="auth_title">CryptoNova'ya Hoş Geldiniz</h2>
+        <p class="auth-modal__subtitle" data-i18n="auth_subtitle">Hesabınıza giriş yapın veya yeni hesap oluşturun</p>
       </div>
 
-      <!-- Sekmeler -->
       <div class="auth-tabs" role="tablist" aria-label="Giriş veya kayıt">
-        <button class="auth-tab active" id="loginTab" role="tab" aria-selected="true" aria-controls="loginPanel">Giriş Yap</button>
-        <button class="auth-tab" id="registerTab" role="tab" aria-selected="false" aria-controls="registerPanel">Kayıt Ol</button>
+        <button class="auth-tab active" id="loginTab" role="tab" aria-selected="true" aria-controls="loginPanel" data-i18n="btn_login">Giriş Yap</button>
+        <button class="auth-tab" id="registerTab" role="tab" aria-selected="false" aria-controls="registerPanel" data-i18n="btn_register">Kayıt Ol</button>
       </div>
 
-      <!-- Hata / Başarı Mesajı -->
       <div class="auth-alert" id="authAlert" role="alert" aria-live="assertive" hidden></div>
 
-      <!-- === GİRİŞ FORMU === -->
+      <!-- Giriş Formu -->
       <div class="auth-panel" id="loginPanel" role="tabpanel" aria-labelledby="loginTab">
         <form class="auth-form" id="loginForm" novalidate>
           <div class="form-group">
-            <label class="form-label" for="loginEmail">E-posta Adresi</label>
+            <label class="form-label" for="loginEmail" data-i18n="label_email">E-posta</label>
             <div class="input-wrapper">
               <svg class="input-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
               <input type="email" id="loginEmail" name="email" class="form-input" placeholder="ornek@email.com" autocomplete="email" required aria-required="true" />
             </div>
           </div>
           <div class="form-group">
-            <label class="form-label" for="loginPassword">Şifre</label>
+            <label class="form-label" for="loginPassword" data-i18n="label_password">Şifre</label>
             <div class="input-wrapper">
               <svg class="input-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
               <input type="password" id="loginPassword" name="password" class="form-input" placeholder="••••••••" autocomplete="current-password" required aria-required="true" />
@@ -340,35 +819,35 @@
             </div>
           </div>
           <button type="submit" class="btn btn--primary btn--full" id="loginSubmitBtn">
-            <span class="btn-text">Giriş Yap</span>
+            <span class="btn-text" data-i18n="btn_login">Giriş Yap</span>
             <span class="btn-spinner" aria-hidden="true" hidden></span>
           </button>
         </form>
         <p class="auth-switch">
-          Hesabınız yok mu?
-          <button class="link-btn" id="switchToRegister">Kayıt Ol</button>
+          <span data-i18n="auth_no_account">Hesabınız yok mu?</span>
+          <button class="link-btn" id="switchToRegister" data-i18n="btn_register">Kayıt Ol</button>
         </p>
       </div>
 
-      <!-- === KAYIT FORMU === -->
+      <!-- Kayıt Formu -->
       <div class="auth-panel" id="registerPanel" role="tabpanel" aria-labelledby="registerTab" hidden>
         <form class="auth-form" id="registerForm" novalidate>
           <div class="form-group">
-            <label class="form-label" for="registerUsername">Kullanıcı Adı</label>
+            <label class="form-label" for="registerUsername" data-i18n="label_username">Kullanıcı Adı</label>
             <div class="input-wrapper">
               <svg class="input-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
               <input type="text" id="registerUsername" name="username" class="form-input" placeholder="kullanici_adi" autocomplete="username" required aria-required="true" minlength="3" maxlength="30" />
             </div>
           </div>
           <div class="form-group">
-            <label class="form-label" for="registerEmail">E-posta Adresi</label>
+            <label class="form-label" for="registerEmail" data-i18n="label_email">E-posta</label>
             <div class="input-wrapper">
               <svg class="input-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
               <input type="email" id="registerEmail" name="email" class="form-input" placeholder="ornek@email.com" autocomplete="email" required aria-required="true" />
             </div>
           </div>
           <div class="form-group">
-            <label class="form-label" for="registerPassword">Şifre</label>
+            <label class="form-label" for="registerPassword" data-i18n="label_password">Şifre</label>
             <div class="input-wrapper">
               <svg class="input-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
               <input type="password" id="registerPassword" name="password" class="form-input" placeholder="En az 6 karakter" autocomplete="new-password" required aria-required="true" minlength="6" />
@@ -376,20 +855,19 @@
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
               </button>
             </div>
-            <!-- Şifre Gücü Göstergesi -->
             <div class="password-strength" id="passwordStrength" aria-live="polite">
               <div class="strength-bar"><div class="strength-fill" id="strengthFill"></div></div>
               <span class="strength-label" id="strengthLabel"></span>
             </div>
           </div>
           <button type="submit" class="btn btn--primary btn--full" id="registerSubmitBtn">
-            <span class="btn-text">Hesap Oluştur</span>
+            <span class="btn-text" data-i18n="btn_register_submit">Hesap Oluştur</span>
             <span class="btn-spinner" aria-hidden="true" hidden></span>
           </button>
         </form>
         <p class="auth-switch">
-          Zaten hesabınız var mı?
-          <button class="link-btn" id="switchToLogin">Giriş Yap</button>
+          <span data-i18n="auth_have_account">Zaten hesabınız var mı?</span>
+          <button class="link-btn" id="switchToLogin" data-i18n="btn_login">Giriş Yap</button>
         </p>
       </div>
 
@@ -401,25 +879,22 @@
   ============================================================ -->
   <div class="modal-overlay" id="coinModalOverlay" role="dialog" aria-modal="true" aria-labelledby="coinModalTitle" hidden>
     <div class="modal coin-modal" id="coinModal">
-
       <button class="modal__close" id="closeCoinModal" aria-label="Modalı kapat">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       </button>
 
-      <!-- Coin Başlık -->
       <div class="coin-modal__header" id="coinModalHeader">
-        <img class="coin-modal__logo" id="coinModalLogo" src="" alt="" width="48" height="48" />
+        <img class="coin-modal__logo" id="coinModalLogo" src="" alt="" width="48" height="48" loading="lazy" />
         <div>
           <h2 class="coin-modal__title" id="coinModalTitle">—</h2>
           <span class="coin-modal__symbol" id="coinModalSymbol">—</span>
           <span class="coin-modal__rank" id="coinModalRank">#—</span>
         </div>
-        <button class="watchlist-btn-large" id="coinModalWatchlistBtn" aria-label="İzleme listesine ekle">
+        <button class="watchlist-btn-large" id="coinModalWatchlistBtn" aria-label="Favori">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
         </button>
       </div>
 
-      <!-- Fiyat -->
       <div class="coin-modal__price-section">
         <div class="coin-modal__price" id="coinModalPrice">—</div>
         <div class="coin-modal__changes">
@@ -429,7 +904,6 @@
         </div>
       </div>
 
-      <!-- Grafik Zaman Seçici -->
       <div class="chart-controls" role="group" aria-label="Grafik zaman aralığı">
         <button class="chart-period" data-days="1" aria-pressed="false">1G</button>
         <button class="chart-period active" data-days="7" aria-pressed="true">7G</button>
@@ -438,48 +912,34 @@
         <button class="chart-period" data-days="365" aria-pressed="false">1Y</button>
       </div>
 
-      <!-- Grafik Canvas -->
       <div class="chart-container" role="img" aria-label="Fiyat grafiği">
         <canvas id="priceChart" aria-hidden="true"></canvas>
-        <div class="chart-loader" id="chartLoader" aria-label="Grafik yükleniyor" hidden>
+        <div class="chart-loader" id="chartLoader" hidden>
           <div class="spinner"></div>
         </div>
       </div>
 
-      <!-- Detay İstatistikler -->
       <div class="coin-stats-grid" id="coinStatsGrid" aria-label="Coin istatistikleri">
-        <div class="coin-stat">
-          <span class="coin-stat__label">Piyasa Değeri</span>
-          <span class="coin-stat__value" id="statMcap">—</span>
-        </div>
-        <div class="coin-stat">
-          <span class="coin-stat__label">24s Hacim</span>
-          <span class="coin-stat__value" id="statVol">—</span>
-        </div>
-        <div class="coin-stat">
-          <span class="coin-stat__label">Dolaşımdaki Arz</span>
-          <span class="coin-stat__value" id="statSupply">—</span>
-        </div>
-        <div class="coin-stat">
-          <span class="coin-stat__label">Maks. Arz</span>
-          <span class="coin-stat__value" id="statMaxSupply">—</span>
-        </div>
-        <div class="coin-stat">
-          <span class="coin-stat__label">24s Yüksek</span>
-          <span class="coin-stat__value positive" id="statHigh">—</span>
-        </div>
-        <div class="coin-stat">
-          <span class="coin-stat__label">24s Düşük</span>
-          <span class="coin-stat__value negative" id="statLow">—</span>
-        </div>
-        <div class="coin-stat">
-          <span class="coin-stat__label">Tüm Zamanlar Yüksek</span>
-          <span class="coin-stat__value" id="statATH">—</span>
-        </div>
-        <div class="coin-stat">
-          <span class="coin-stat__label">ATH'den Uzaklık</span>
-          <span class="coin-stat__value" id="statATHChange">—</span>
-        </div>
+        <div class="coin-stat"><span class="coin-stat__label" data-i18n="stat_mcap">Piyasa Değeri</span><span class="coin-stat__value" id="statMcap">—</span></div>
+        <div class="coin-stat"><span class="coin-stat__label" data-i18n="stat_volume">24s Hacim</span><span class="coin-stat__value" id="statVol">—</span></div>
+        <div class="coin-stat"><span class="coin-stat__label" data-i18n="stat_supply">Dolaşımdaki Arz</span><span class="coin-stat__value" id="statSupply">—</span></div>
+        <div class="coin-stat"><span class="coin-stat__label" data-i18n="stat_max_supply">Maks. Arz</span><span class="coin-stat__value" id="statMaxSupply">—</span></div>
+        <div class="coin-stat"><span class="coin-stat__label" data-i18n="stat_high">24s Yüksek</span><span class="coin-stat__value positive" id="statHigh">—</span></div>
+        <div class="coin-stat"><span class="coin-stat__label" data-i18n="stat_low">24s Düşük</span><span class="coin-stat__value negative" id="statLow">—</span></div>
+        <div class="coin-stat"><span class="coin-stat__label" data-i18n="stat_ath">Tüm Zamanlar Yüksek</span><span class="coin-stat__value" id="statATH">—</span></div>
+        <div class="coin-stat"><span class="coin-stat__label" data-i18n="stat_ath_change">ATH'den Uzaklık</span><span class="coin-stat__value" id="statATHChange">—</span></div>
+      </div>
+
+      <!-- Modal'da Hızlı Al-Sat Butonu -->
+      <div class="coin-modal__actions">
+        <button class="btn btn--primary" id="coinModalBuyBtn">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+          <span data-i18n="btn_quick_buy">Hızlı Al</span>
+        </button>
+        <button class="btn btn--ghost" id="coinModalSellBtn">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/><polyline points="17 18 23 18 23 12"/></svg>
+          <span data-i18n="btn_quick_sell">Hızlı Sat</span>
+        </button>
       </div>
 
     </div><!-- /.modal -->
@@ -490,7 +950,10 @@
   ============================================================ -->
   <div class="toast-container" id="toastContainer" aria-live="polite" aria-label="Bildirimler"></div>
 
-  <!-- Ana uygulama JS -->
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+
+  <!-- Ana Uygulama -->
   <script src="app.js"></script>
 </body>
 </html>

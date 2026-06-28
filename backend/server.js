@@ -1,9 +1,9 @@
 /**
  * =============================================================
- * server.js — Kripto Takip Platformu Ana Sunucu (SQLite)
+ * server.js — CryptoNova Ana Sunucu v2.0
  * =============================================================
- * Mongoose/MongoDB bağlantısı kaldırıldı.
- * SQLite dosya tabanlı veritabanı kullanılır — kurulum gerekmez.
+ * SQLite tabanlı — MongoDB bağlantısı yok.
+ * Rotalar: /api/auth, /api/crypto, /api/wallet
  * =============================================================
  */
 
@@ -14,10 +14,9 @@ const rateLimit = require('express-rate-limit');
 const path      = require('path');
 require('dotenv').config();
 
-// SQLite veritabanını başlat (uygulama başlar başlamaz tablo oluşturulur)
+// SQLite veritabanını başlat (tablolar otomatik oluşturulur)
 require('./db');
 
-// --- Uygulama ---
 const app  = express();
 const PORT = process.env.PORT || 5000;
 
@@ -27,24 +26,19 @@ const PORT = process.env.PORT || 5000;
 
 app.use(helmet({
   crossOriginResourcePolicy: { policy: 'cross-origin' },
-  // Development'ta CSP'yi kapat — CoinGecko CDN resimlerini engellememesi için
-  // Production'da buraya uygun direktifler eklenmeli
-  contentSecurityPolicy: false
+  contentSecurityPolicy    : false  // Development: CDN resimlerini engellemez
 }));
 
-// Development modunda tüm origin'lere izin ver
-// Production'da ALLOWED_ORIGINS kullanılır
 const isDev = process.env.NODE_ENV !== 'production';
 
 const allowedOrigins = process.env.ALLOWED_ORIGINS
   ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim())
-  : ['http://localhost:5500', 'http://127.0.0.1:5500', 'http://localhost:3000'];
+  : ['http://localhost:5500', 'http://127.0.0.1:5500', 'http://localhost:3000', 'http://localhost:5000'];
 
 app.use(cors({
   origin: (origin, callback) => {
-    // Development modunda tüm origin'lere izin ver (Live Server, dosya protokolü vb.)
-    if (isDev) return callback(null, true);
-    if (!origin) return callback(null, true);
+    if (isDev)    return callback(null, true);
+    if (!origin)  return callback(null, true);
     if (allowedOrigins.includes(origin)) return callback(null, true);
     callback(new Error(`CORS: Bu kaynağa izin verilmiyor: ${origin}`));
   },
@@ -53,20 +47,20 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
-// Genel rate limit: 15 dakikada 100 istek
+// Genel API rate limit: 15 dakikada 20000 istek (Dev için çok yüksek)
 app.use('/api/', rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max     : 100,
+  windowMs       : 15 * 60 * 1000,
+  max            : 20000,
   standardHeaders: true,
   legacyHeaders  : false,
-  message: { success: false, message: 'Çok fazla istek. 15 dakika sonra tekrar deneyin.' }
+  message        : { success: false, message: 'Çok fazla istek. 15 dakika sonra tekrar deneyin.' }
 }));
 
-// Auth rate limit: 15 dakikada 10 deneme
+// Auth rate limit: 15 dakikada 1000 deneme (Dev için esnek)
 app.use('/api/auth/', rateLimit({
   windowMs: 15 * 60 * 1000,
-  max     : 10,
-  message: { success: false, message: 'Çok fazla giriş denemesi. 15 dakika sonra tekrar deneyin.' }
+  max     : 1000,
+  message : { success: false, message: 'Çok fazla giriş denemesi. 15 dakika sonra tekrar deneyin.' }
 }));
 
 // =============================================================
@@ -81,25 +75,30 @@ app.use(express.urlencoded({ extended: false }));
 app.use(express.static(path.join(__dirname, '..', 'frontend')));
 
 // =============================================================
-// ROTALAR
+// API ROTALAR
 // =============================================================
 const authRoutes   = require('./routes/auth');
 const cryptoRoutes = require('./routes/crypto');
+const walletRoutes = require('./routes/wallet');
 
 app.use('/api/auth',   authRoutes);
 app.use('/api/crypto', cryptoRoutes);
+app.use('/api/wallet', walletRoutes);
 
 // Sağlık kontrolü
 app.get('/api/health', (req, res) => {
   res.json({
     success  : true,
-    message  : 'Sunucu çalışıyor',
+    message  : 'CryptoNova Sunucusu çalışıyor',
+    version  : '2.0.0',
     db       : 'SQLite (dosya tabanlı)',
     timestamp: new Date().toISOString()
   });
 });
 
-// Frontend SPA — tanımsız route'lar
+// =============================================================
+// SPA — Tüm bilinmeyen route'lar index.html'e yönlendirilir
+// =============================================================
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'frontend', 'index.html'));
 });
@@ -129,11 +128,12 @@ app.use((err, req, res, next) => {
 // SUNUCU BAŞLAT
 // =============================================================
 const server = app.listen(PORT, () => {
-  console.log(`\n🚀 CryptoNova Sunucusu başlatıldı`);
-  console.log(`📡 Adres  : http://localhost:${PORT}`);
-  console.log(`💾 DB     : SQLite (backend/database.sqlite)`);
-  console.log(`🌍 Ortam  : ${process.env.NODE_ENV || 'development'}`);
-  console.log(`🔒 CORS   : ${allowedOrigins.join(', ')}\n`);
+  console.log(`\n🚀 CryptoNova v2.0 Sunucusu başlatıldı`);
+  console.log(`📡 Adres      : http://localhost:${PORT}`);
+  console.log(`💾 Veritabanı : SQLite (backend/database.sqlite)`);
+  console.log(`🌍 Ortam      : ${process.env.NODE_ENV || 'development'}`);
+  console.log(`🔒 CORS       : ${isDev ? 'Tüm originler (dev modu)' : allowedOrigins.join(', ')}`);
+  console.log(`📦 Rotalar    : /api/auth | /api/crypto | /api/wallet\n`);
 });
 
 // Graceful Shutdown

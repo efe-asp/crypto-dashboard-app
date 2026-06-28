@@ -33,7 +33,7 @@ const protect = (req, res, next) => {
 
   try {
     // 2. Token'ı doğrula
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'cryptonova_super_secret_key');
 
     // 3. Kullanıcının hâlâ var olup olmadığını SQLite'tan kontrol et
     const user = UserModel.findById(decoded.id);
@@ -75,7 +75,7 @@ const protect = (req, res, next) => {
 const generateToken = (userId) => {
   return jwt.sign(
     { id: userId },
-    process.env.JWT_SECRET,
+    process.env.JWT_SECRET || 'cryptonova_super_secret_key',
     { expiresIn: process.env.JWT_EXPIRE || '7d' }
   );
 };

@@ -1,74 +1,128 @@
 /**
  * =============================================================
- * routes/crypto.js — Kripto Para API Rotaları (SQLite uyumlu)
+ * routes/crypto.js — Kripto Para API Rotaları
  * =============================================================
- * Watchlist işlemleri SQLite modeline uyarlandı.
- * CoinGecko proxy + cache mantığı değişmedi.
+ * 429-Proof Stale-While-Revalidate Cache:
+ *   - Her başarılı yanıt hem node-cache hem de lastGoodData Map'e kaydedilir.
+ *   - 429 veya herhangi bir ağ hatası durumunda lastGoodData'dan servis edilir.
+ *   - 60sn dolmadan KESİNLİKLE dış API'ye yeni istek atılmaz.
+ * Bulk Fetching:
+ *   - /coins endpoint'i tek istekte 100 coin getirir.
+ *   - Her coin için ayrı detay isteği ATILMAZ.
  * =============================================================
  */
 
-const express    = require('express');
-const router     = express.Router();
-const axios      = require('axios');
-const NodeCache  = require('node-cache');
+const express   = require('express');
+const router    = express.Router();
+const axios     = require('axios');
+const NodeCache = require('node-cache');
 const { protect }  = require('../middleware/auth');
 const UserModel    = require('../models/User');
 
 // =============================================================
-// CACHE KURULUMU
+// CACHE SİSTEMİ
 // =============================================================
+
+// Birincil TTL tabanlı cache (node-cache)
 const cache = new NodeCache({
-  stdTTL    : 60,
+  stdTTL     : 60,       // 60 saniye varsayılan TTL
   checkperiod: 120,
-  useClones : false
+  useClones  : false
 });
+
+// İkincil "Son Başarılı Veri" deposu — TTL'siz, asla silinmez
+// 429 veya herhangi bir hata durumunda buradan servis edilir
+const lastGoodData = new Map();
 
 const BASE_URL = process.env.COINGECKO_BASE_URL || 'https://api.coingecko.com/api/v3';
 
 const getHeaders = () => {
-  const headers = { 'Accept': 'application/json', 'User-Agent': 'CryptoTracker/1.0' };
-  if (process.env.COINGECKO_API_KEY) headers['x-cg-demo-api-key'] = process.env.COINGECKO_API_KEY;
+  const headers = {
+    'Accept'    : 'application/json',
+    'User-Agent': 'CryptoNova/2.0'
+  };
+  if (process.env.COINGECKO_API_KEY) {
+    headers['x-cg-demo-api-key'] = process.env.COINGECKO_API_KEY;
+  }
   return headers;
 };
 
+/**
+ * fetchWithCache — 429-Proof akıllı önbellek yöneticisi.
+ *
+ * 1) Cache HIT  → Anında yanıt, dış istek atılmaz.
+ * 2) Cache MISS → Dış API çağrısı.
+ *    a) Başarı   → node-cache + lastGoodData'ya kaydet.
+ *    b) 429/Hata → lastGoodData'dan stale veri döndür.
+ *    c) lastGoodData de boşsa → hatayı fırlat.
+ */
 const fetchWithCache = async (cacheKey, url, params = {}, ttl = 60) => {
+  // --- 1. node-cache kontrolü ---
   const cached = cache.get(cacheKey);
-  if (cached) {
-    console.log(`🔵 Cache HIT: ${cacheKey}`);
-    return { data: cached, fromCache: true };
+  if (cached !== undefined) {
+    console.log(`🔵 Cache HIT : ${cacheKey}`);
+    return { data: cached, fromCache: true, stale: false };
   }
 
-  console.log(`🟡 Cache MISS: ${cacheKey}`);
+  console.log(`🟡 Cache MISS: ${cacheKey} — Dış API isteği başlıyor...`);
+
   try {
-    const response = await axios.get(url, { params, headers: getHeaders(), timeout: 10000 });
+    const response = await axios.get(url, {
+      params,
+      headers: getHeaders(),
+      timeout: 12000
+    });
+
+    // Başarılı yanıtı her iki cache'e de kaydet
     cache.set(cacheKey, response.data, ttl);
-    return { data: response.data, fromCache: false };
+    lastGoodData.set(cacheKey, {
+      data     : response.data,
+      savedAt  : Date.now()
+    });
+
+    console.log(`✅ API Başarılı: ${cacheKey}`);
+    return { data: response.data, fromCache: false, stale: false };
+
   } catch (error) {
-    if (error.response?.status === 429) {
-      const staleData = cache.get(cacheKey);
-      if (staleData) return { data: staleData, fromCache: true, stale: true };
+    const status = error.response?.status;
+    const stale  = lastGoodData.get(cacheKey);
+
+    if (status === 429) {
+      console.warn(`⚠️  429 Too Many Requests: ${cacheKey}`);
+    } else {
+      console.error(`❌ API Hatası [${status || 'network'}]: ${cacheKey} — ${error.message}`);
     }
+
+    // Stale veri varsa onu döndür (Graceful Degradation)
+    if (stale) {
+      const ageMin = Math.round((Date.now() - stale.savedAt) / 60000);
+      console.log(`🟠 Stale veri kullanılıyor: ${cacheKey} (${ageMin} dakika önce kaydedildi)`);
+      // Stale veriyi kısa süre cache'e al ki tekrar tekrar API çağrısı yapılmasın
+      cache.set(cacheKey, stale.data, Math.min(ttl, 30));
+      return { data: stale.data, fromCache: true, stale: true };
+    }
+
     throw error;
   }
 };
 
 // =============================================================
-// GET /api/crypto/coins — Top 50 Coin
+// GET /api/crypto/coins — Top 100 Coin (Bulk Fetch)
 // =============================================================
 router.get('/coins', async (req, res) => {
   try {
-    const page     = parseInt(req.query.page)    || 1;
-    const currency = req.query.currency          || 'usd';
+    const page     = parseInt(req.query.page) || 1;
+    const currency = (req.query.currency || 'usd').toLowerCase();
     const cacheKey = `markets_${currency}_${page}`;
     const ttl      = parseInt(process.env.CACHE_TTL_MARKETS) || 60;
 
-    const { data, fromCache } = await fetchWithCache(
+    const { data, fromCache, stale } = await fetchWithCache(
       cacheKey,
       `${BASE_URL}/coins/markets`,
       {
         vs_currency             : currency,
         order                   : 'market_cap_desc',
-        per_page                : 50,
+        per_page                : 100,
         page,
         sparkline               : true,
         price_change_percentage : '1h,24h,7d'
@@ -76,7 +130,15 @@ router.get('/coins', async (req, res) => {
       ttl
     );
 
-    res.status(200).json({ success: true, fromCache, count: data.length, page, currency, data });
+    res.status(200).json({
+      success: true,
+      fromCache,
+      stale,
+      count   : data.length,
+      page,
+      currency,
+      data
+    });
 
   } catch (error) {
     console.error('Coins Hatası:', error.message);
@@ -88,7 +150,7 @@ router.get('/coins', async (req, res) => {
 });
 
 // =============================================================
-// GET /api/crypto/coin/:id — Tek Coin Detayı
+// GET /api/crypto/coin/:id — Tek Coin Detayı (Modal için)
 // =============================================================
 router.get('/coin/:id', async (req, res) => {
   try {
@@ -99,14 +161,21 @@ router.get('/coin/:id', async (req, res) => {
       return res.status(400).json({ success: false, message: 'Geçersiz coin ID.' });
     }
 
-    const { data, fromCache } = await fetchWithCache(
+    const { data, fromCache, stale } = await fetchWithCache(
       cacheKey,
       `${BASE_URL}/coins/${coinId}`,
-      { localization: false, tickers: false, market_data: true, community_data: false, developer_data: false, sparkline: true },
-      parseInt(process.env.CACHE_TTL_COIN) || 30
+      {
+        localization   : false,
+        tickers        : false,
+        market_data    : true,
+        community_data : false,
+        developer_data : false,
+        sparkline      : true
+      },
+      parseInt(process.env.CACHE_TTL_COIN) || 60
     );
 
-    res.status(200).json({ success: true, fromCache, data });
+    res.status(200).json({ success: true, fromCache, stale, data });
 
   } catch (error) {
     if (error.response?.status === 404) {
@@ -122,23 +191,27 @@ router.get('/coin/:id', async (req, res) => {
 // =============================================================
 router.get('/coin/:id/chart', async (req, res) => {
   try {
-    const coinId   = req.params.id.toLowerCase().trim();
-    const days     = req.query.days     || '7';
-    const currency = req.query.currency || 'usd';
+    const coinId    = req.params.id.toLowerCase().trim();
+    const days      = req.query.days     || '7';
+    const currency  = req.query.currency || 'usd';
     const validDays = ['1', '7', '14', '30', '90', '180', '365', 'max'];
 
     if (!validDays.includes(days)) {
       return res.status(400).json({ success: false, message: 'Geçersiz gün parametresi.' });
     }
 
-    const { data, fromCache } = await fetchWithCache(
+    const { data, fromCache, stale } = await fetchWithCache(
       `chart_${coinId}_${days}_${currency}`,
       `${BASE_URL}/coins/${coinId}/market_chart`,
-      { vs_currency: currency, days, interval: days === '1' ? 'hourly' : 'daily' },
+      {
+        vs_currency: currency,
+        days,
+        interval: days === '1' ? 'hourly' : 'daily'
+      },
       300
     );
 
-    res.status(200).json({ success: true, fromCache, data });
+    res.status(200).json({ success: true, fromCache, stale, data });
 
   } catch (error) {
     console.error('Chart Hatası:', error.message);
@@ -164,8 +237,11 @@ router.get('/search', async (req, res) => {
     );
 
     const coins = (data.coins || []).slice(0, 20).map(c => ({
-      id: c.id, name: c.name, symbol: c.symbol,
-      thumb: c.thumb, market_cap_rank: c.market_cap_rank
+      id            : c.id,
+      name          : c.name,
+      symbol        : c.symbol,
+      thumb         : c.thumb,
+      market_cap_rank: c.market_cap_rank
     }));
 
     res.status(200).json({ success: true, fromCache, count: coins.length, data: coins });
@@ -181,21 +257,24 @@ router.get('/search', async (req, res) => {
 // =============================================================
 router.get('/trending', async (req, res) => {
   try {
-    const { data, fromCache } = await fetchWithCache(
-      'trending_coins', `${BASE_URL}/search/trending`, {}, 600
+    const { data, fromCache, stale } = await fetchWithCache(
+      'trending_coins',
+      `${BASE_URL}/search/trending`,
+      {},
+      600
     );
 
     const trending = (data.coins || []).map(item => ({
-      id      : item.item.id,
-      name    : item.item.name,
-      symbol  : item.item.symbol,
-      thumb   : item.item.thumb,
-      score   : item.item.score,
+      id       : item.item.id,
+      name     : item.item.name,
+      symbol   : item.item.symbol,
+      thumb    : item.item.thumb,
+      score    : item.item.score,
       price_btc: item.item.price_btc,
-      data    : item.item.data
+      data     : item.item.data
     }));
 
-    res.status(200).json({ success: true, fromCache, data: trending });
+    res.status(200).json({ success: true, fromCache, stale, data: trending });
 
   } catch (error) {
     console.error('Trending Hatası:', error.message);
@@ -208,10 +287,13 @@ router.get('/trending', async (req, res) => {
 // =============================================================
 router.get('/global', async (req, res) => {
   try {
-    const { data, fromCache } = await fetchWithCache(
-      'global_market', `${BASE_URL}/global`, {}, 300
+    const { data, fromCache, stale } = await fetchWithCache(
+      'global_market',
+      `${BASE_URL}/global`,
+      {},
+      300
     );
-    res.status(200).json({ success: true, fromCache, data: data.data });
+    res.status(200).json({ success: true, fromCache, stale, data: data.data });
   } catch (error) {
     console.error('Global Hatası:', error.message);
     res.status(500).json({ success: false, message: 'Küresel piyasa verisi alınamadı.' });
@@ -219,7 +301,39 @@ router.get('/global', async (req, res) => {
 });
 
 // =============================================================
-// GET /api/crypto/watchlist — Kullanıcı Watchlist (SQLite)
+// GET /api/crypto/prices — Birden fazla coin fiyatı (converter için)
+// =============================================================
+router.get('/prices', async (req, res) => {
+  try {
+    const ids      = req.query.ids      || 'bitcoin,ethereum';
+    const currency = req.query.currency || 'usd';
+
+    if (!ids) {
+      return res.status(400).json({ success: false, message: 'ids parametresi zorunludur.' });
+    }
+
+    const { data, fromCache, stale } = await fetchWithCache(
+      `prices_${ids}_${currency}`,
+      `${BASE_URL}/simple/price`,
+      {
+        ids,
+        vs_currencies          : currency,
+        include_24hr_change    : true,
+        include_market_cap     : false
+      },
+      60
+    );
+
+    res.status(200).json({ success: true, fromCache, stale, data });
+
+  } catch (error) {
+    console.error('Prices Hatası:', error.message);
+    res.status(500).json({ success: false, message: 'Fiyat verisi alınamadı.' });
+  }
+});
+
+// =============================================================
+// GET /api/crypto/watchlist — Kullanıcı Watchlist
 // =============================================================
 router.get('/watchlist', protect, async (req, res) => {
   try {
@@ -229,7 +343,7 @@ router.get('/watchlist', protect, async (req, res) => {
       return res.status(200).json({ success: true, count: 0, data: [] });
     }
 
-    const { data, fromCache } = await fetchWithCache(
+    const { data, fromCache, stale } = await fetchWithCache(
       `watchlist_${req.user.id}`,
       `${BASE_URL}/coins/markets`,
       {
@@ -242,7 +356,7 @@ router.get('/watchlist', protect, async (req, res) => {
       60
     );
 
-    res.status(200).json({ success: true, fromCache, count: data.length, data });
+    res.status(200).json({ success: true, fromCache, stale, count: data.length, data });
 
   } catch (error) {
     console.error('Watchlist GET Hatası:', error.message);
@@ -251,7 +365,7 @@ router.get('/watchlist', protect, async (req, res) => {
 });
 
 // =============================================================
-// POST /api/crypto/watchlist/:id — Watchlist'e Ekle (SQLite)
+// POST /api/crypto/watchlist/:id — Watchlist'e Ekle
 // =============================================================
 router.post('/watchlist/:id', protect, async (req, res) => {
   try {
@@ -267,7 +381,6 @@ router.post('/watchlist/:id', protect, async (req, res) => {
       return res.status(409).json({ success: false, message: 'Bu coin zaten izleme listenizde.' });
     }
 
-    // Watchlist cache'ini sıfırla
     cache.del(`watchlist_${req.user.id}`);
 
     res.status(200).json({
@@ -286,7 +399,7 @@ router.post('/watchlist/:id', protect, async (req, res) => {
 });
 
 // =============================================================
-// DELETE /api/crypto/watchlist/:id — Watchlist'ten Çıkar (SQLite)
+// DELETE /api/crypto/watchlist/:id — Watchlist'ten Çıkar
 // =============================================================
 router.delete('/watchlist/:id', protect, async (req, res) => {
   try {
@@ -316,13 +429,19 @@ router.delete('/watchlist/:id', protect, async (req, res) => {
 // =============================================================
 router.get('/cache/stats', (req, res) => {
   if (process.env.NODE_ENV === 'production') {
-    return res.status(403).json({ success: false, message: 'Production\'da erişilemez.' });
+    return res.status(403).json({ success: false, message: "Production'da erişilemez." });
   }
   const stats = cache.getStats();
   res.status(200).json({
     success: true,
-    stats  : { hits: stats.hits, misses: stats.misses, keys: cache.keys().length },
-    keys   : cache.keys()
+    stats  : {
+      hits        : stats.hits,
+      misses      : stats.misses,
+      keys        : cache.keys().length,
+      lastGoodKeys: lastGoodData.size
+    },
+    keys        : cache.keys(),
+    lastGoodKeys: [...lastGoodData.keys()]
   });
 });
 
