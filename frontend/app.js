@@ -1602,7 +1602,10 @@ const ConverterModule = (() => {
 
   // USD cinsinden fiyat al
   const getUsdPrice = (id) => {
-    if (FIAT_IDS.includes(id.toLowerCase())) return FIAT_RATES[id.toLowerCase()] || 1;
+    if (FIAT_IDS.includes(id.toLowerCase())) {
+      const rate = FIAT_RATES[id.toLowerCase()] || 1;
+      return 1 / rate;
+    }
     return priceMap[id]?.usd || 0;
   };
 
