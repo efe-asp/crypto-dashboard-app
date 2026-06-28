@@ -1118,19 +1118,16 @@ const CoinDetailModule = (() => {
   let currentCoin = null;
   let obTimer = null;
   
-  const view = () => document.getElementById('coinDetailView');
+  const view = () => document.getElementById('tab-coindetail');
 
   const open = async (coinId, previewData = null) => {
     try {
-      if (typeof Toast !== 'undefined') Toast.info("Detay sayfası yükleniyor...");
-      
       currentCoin = previewData || MarketsModule.getAllCoins().find(c => c.id === coinId) || { id: coinId };
       
-      const v = view();
-      if (!v) { alert("coinDetailView DOM elemanı bulunamadı!"); return; }
-      v.hidden = false;
-      setTimeout(() => v.classList.add('show'), 10);
-      document.body.style.overflow = 'hidden';
+      // Tab panel geçişi
+      if (typeof TabRouter !== 'undefined') {
+        TabRouter.navigate('coindetail');
+      }
 
       if (previewData || currentCoin.name) populateData(currentCoin);
 
@@ -1140,20 +1137,21 @@ const CoinDetailModule = (() => {
       startOrderBook();
       loadSentiment(coinId);
       updateTradeWidget(coinId);
+      
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (e) {
-      alert("Hata oluştu: " + e.message + "\n\nStack: " + e.stack);
       console.error(e);
+      if (typeof Toast !== 'undefined') Toast.error("Sistem Hatası: " + e.message);
     }
   };
 
   const close = () => {
-    const v = view();
-    v.classList.remove('show');
-    setTimeout(() => { v.hidden = true; }, 300);
-    document.body.style.overflow = '';
     currentCoin = null;
     if (priceChartInstance) { priceChartInstance.destroy(); priceChartInstance = null; }
     clearInterval(obTimer);
+    if (typeof TabRouter !== 'undefined') {
+      TabRouter.navigate('markets');
+    }
   };
 
   const populateData = (c) => {
@@ -1400,9 +1398,9 @@ const CoinDetailModule = (() => {
     document.getElementById('cdBackBtn')?.addEventListener('click', close);
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !view().hidden) close(); });
 
-    document.querySelectorAll('#coinDetailView .chart-period').forEach(btn => {
+    document.querySelectorAll('#tab-coindetail .chart-period').forEach(btn => {
       btn.addEventListener('click', () => {
-        document.querySelectorAll('#coinDetailView .chart-period').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('#tab-coindetail .chart-period').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
         if (currentCoin) loadChart(currentCoin.id, parseInt(btn.dataset.days));
       });

@@ -2130,23 +2130,6 @@ ul { list-style: none; }
 /* =========================================================
    COIN DETAIL VIEW (BORSA TERMINALI)
 ========================================================= */
-.coin-detail-view {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  z-index: 9999;
-  background-color: var(--bg-main);
-  overflow-y: auto;
-  opacity: 0;
-  transform: translateY(20px);
-  transition: opacity 0.3s ease, transform 0.3s ease;
-}
-.coin-detail-view.show {
-  opacity: 1;
-  transform: translateY(0);
-}
 
 .cd-top-bar {
   position: sticky;
