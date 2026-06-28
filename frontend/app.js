@@ -20,6 +20,26 @@
 'use strict';
 
 // ============================================================
+// CANLI DÖVİZ KURLARI (FIAT)
+// ============================================================
+const GlobalRates = {
+  eur: 0.92,
+  try: 46.61,
+  async init() {
+    try {
+      const res = await fetch('https://open.er-api.com/v6/latest/USD');
+      const data = await res.json();
+      if (data && data.rates) {
+        this.eur = data.rates.EUR || this.eur;
+        this.try = data.rates.TRY || this.try;
+      }
+    } catch (e) {
+      console.warn('Canlı döviz kurları çekilemedi, varsayılan kurlar kullanılıyor.', e);
+    }
+  }
+};
+
+// ============================================================
 // I18N — ÇEVIRI SİSTEMİ
 // ============================================================
 const LANGS = {
@@ -1571,8 +1591,6 @@ const ConverterModule = (() => {
 
   const FIAT_IDS = ['usd', 'eur', 'try'];
   const CRYPTO_IDS = ['bitcoin', 'ethereum', 'binancecoin', 'solana', 'cardano'];
-  // Sabit fiat oranları (usd cinsinden)
-  const FIAT_RATES = { usd: 1, eur: 0.92, try: 46.61 };
 
   const MARKET_PAIRS = [
     { from: 'bitcoin',  to: 'usd', label: 'BTC/USD' },
@@ -1603,7 +1621,7 @@ const ConverterModule = (() => {
   // USD cinsinden fiyat al
   const getUsdPrice = (id) => {
     if (FIAT_IDS.includes(id.toLowerCase())) {
-      const rate = FIAT_RATES[id.toLowerCase()] || 1;
+      const rate = id.toLowerCase() === 'usd' ? 1 : (GlobalRates[id.toLowerCase()] || 1);
       return 1 / rate;
     }
     return priceMap[id]?.usd || 0;
@@ -1738,8 +1756,8 @@ const WalletModule = (() => {
     items.forEach(w => {
       let usdVal = 0;
       if (w.currency === 'USD') usdVal = w.balance;
-      else if (w.currency === 'EUR') usdVal = w.balance * 1.09;
-      else if (w.currency === 'TRY') usdVal = w.balance / 46.61;
+      else if (w.currency === 'EUR') usdVal = w.balance / GlobalRates.eur;
+      else if (w.currency === 'TRY') usdVal = w.balance / GlobalRates.try;
       else {
         const coin = allCoins.find(c => c.symbol?.toUpperCase() === w.currency);
         if (coin) usdVal = w.balance * (coin.current_price || 0);
@@ -2450,6 +2468,9 @@ const LivePriceModule = (() => {
 // ============================================================
 const App = {
   async init() {
+    // 0. Canlı döviz kurlarını çek
+    await GlobalRates.init();
+
     // 1. Tema uygula
     Theme.apply(Theme.get());
 
