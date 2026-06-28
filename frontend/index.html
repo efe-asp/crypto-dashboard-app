@@ -815,28 +815,9 @@
 
           <!-- SAĞ SÜTUN -->
           <div class="cd-right">
-            <!-- Hızlı Al-Sat (Trade Widget) -->
-            <div class="cd-trade-widget glass">
-              <h3 class="cd-widget-title" data-i18n="quick_trade">Hızlı Al/Sat</h3>
-              <div class="dw-tab-nav" style="margin-bottom:16px;">
-                <button class="dw-tab-btn active" id="cdTabBuy">AL</button>
-                <button class="dw-tab-btn" id="cdTabSell">SAT</button>
-              </div>
-              <div class="form-group">
-                <label class="form-label" for="cdTradeAmount">Miktar (<span id="cdTradeCurrencyLabel">USD</span>)</label>
-                <input type="number" id="cdTradeAmount" class="form-input" placeholder="0.00" min="0.0001" step="any">
-                <div style="display:flex;justify-content:space-between;margin-top:8px;font-size:0.75rem;">
-                  <span style="color:var(--color-text-muted);">Kullanılabilir:</span>
-                  <strong id="cdAvailableBalance">$0.00</strong>
-                </div>
-              </div>
-              <button class="btn btn--buy btn--full" id="cdTradeBtn">Satın Al</button>
-              <p id="cdTradeMsg" style="font-size:0.75rem; margin-top:8px; display:none;"></p>
-            </div>
-
             <!-- Canlı Emir Defteri (Order Book Sim) -->
             <div class="cd-order-book glass">
-              <h3 class="cd-widget-title" data-i18n="order_book">Emir Defteri</h3>
+              <h3 class="cd-widget-title">Emir Defteri</h3>
               <div class="ob-header">
                 <span>Fiyat(USD)</span><span>Miktar</span><span>Toplam</span>
               </div>
@@ -847,19 +828,37 @@
 
             <!-- Duyarlılık Anketi (Market Sentiment) -->
             <div class="cd-sentiment glass">
-              <h3 class="cd-widget-title" data-i18n="market_sentiment">Topluluk Duyarlılığı</h3>
-              <p style="font-size:0.85rem;color:var(--color-text-muted);margin-bottom:12px;">Bu coin hakkında beklentiniz nedir?</p>
+              <h3 class="cd-widget-title">Piyasa Beklentisi</h3>
+              <p style="font-size:0.85rem;color:var(--color-text-muted);margin-bottom:12px;">Yatırımcıların bu coin için genel eğilimi nedir?</p>
               <div style="display:flex; gap:8px; margin-bottom:12px;">
-                <button class="btn btn--buy" id="cdVoteBull" style="flex:1;">🚀 Boğa</button>
-                <button class="btn btn--sell" id="cdVoteBear" style="flex:1;">🐻 Ayı</button>
+                <button class="btn btn--buy" id="cdVoteBull" style="flex:1;">📈 Yükselecek</button>
+                <button class="btn btn--sell" id="cdVoteBear" style="flex:1;">📉 Düşecek</button>
               </div>
               <div class="sentiment-bar">
                 <div class="sentiment-bar__fill" id="cdBullBar" style="width:50%;"></div>
               </div>
               <div style="display:flex; justify-content:space-between; font-size:0.8rem; margin-top:8px; font-weight:600;">
-                <span class="positive" id="cdBullPct">%50 Boğa</span>
-                <span class="negative" id="cdBearPct">%50 Ayı</span>
+                <span class="positive" id="cdBullPct">%50 Alım</span>
+                <span class="negative" id="cdBearPct">%50 Satış</span>
               </div>
+            </div>
+
+            <!-- Hızlı Al-Sat (Trade Widget) -->
+            <div class="cd-trade-widget glass">
+              <h3 class="cd-widget-title">Hızlı İşlem</h3>
+              <div class="dw-tab-nav" style="margin-bottom:16px;">
+                <button class="dw-tab-btn active" id="cdTabBuy">ALIM (LONG)</button>
+                <button class="dw-tab-btn" id="cdTabSell">SATIŞ (SHORT)</button>
+              </div>
+              <div class="form-group" style="margin-bottom: 16px;">
+                <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+                  <label class="form-label" for="cdTradeAmount" style="margin:0;">Miktar (<span id="cdTradeCurrencyLabel">USD</span>)</label>
+                  <span style="font-size:0.75rem; color:var(--color-text-muted);">Kullanılabilir: <strong id="cdAvailableBalance" style="color:var(--color-text);">$0.00</strong></span>
+                </div>
+                <input type="number" id="cdTradeAmount" class="form-input" placeholder="0.00" min="0.0001" step="any">
+              </div>
+              <button class="btn btn--buy btn--full" id="cdTradeBtn" style="padding: 12px; font-size: 1rem;">İşlemi Onayla</button>
+              <p id="cdTradeMsg" style="font-size:0.75rem; margin-top:8px; display:none;"></p>
             </div>
           </div>
 

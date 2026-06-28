@@ -1339,8 +1339,8 @@ const CoinDetailModule = (() => {
     
     const bLbl = document.getElementById('cdBullPct');
     const brLbl = document.getElementById('cdBearPct');
-    if (bLbl) bLbl.textContent = `%${bullPct} Boğa`;
-    if (brLbl) brLbl.textContent = `%${bearPct} Ayı`;
+    if (bLbl) bLbl.textContent = `%${bullPct} Alım`;
+    if (brLbl) brLbl.textContent = `%${bearPct} Satış`;
   };
 
   /* --- QUICK TRADE WIDGET --- */
@@ -1390,7 +1390,7 @@ const CoinDetailModule = (() => {
       Toast.error("İşlem Başarısız", err.message);
     } finally {
       btn.disabled = false;
-      btn.textContent = tradeSide === 'buy' ? "Satın Al" : "Sat";
+      btn.textContent = tradeSide === 'buy' ? "Alım İşlemini Onayla" : "Satış İşlemini Onayla";
     }
   };
 
@@ -1412,7 +1412,7 @@ const CoinDetailModule = (() => {
       document.getElementById('cdTabSell').classList.toggle('active', side === 'sell');
       const btn = document.getElementById('cdTradeBtn');
       if(btn) {
-        btn.textContent = side === 'buy' ? 'Satın Al' : 'Sat';
+        btn.textContent = side === 'buy' ? 'Alım İşlemini Onayla' : 'Satış İşlemini Onayla';
         btn.className = side === 'buy' ? 'btn btn--buy btn--full' : 'btn btn--sell btn--full';
       }
       updateTradeWidget(currentCoin?.id);

@@ -2184,6 +2184,23 @@ ul { list-style: none; }
   padding: 24px;
   border-radius: var(--radius-lg);
 }
+.coin-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.02);
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+}
+.coin-stat span {
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+}
+.coin-stat strong {
+  font-size: 1.1rem;
+  font-family: 'JetBrains Mono', monospace;
+}
 
 /* Sağ Sütun Widgetlar */
 .cd-widget-title { font-size: 1.1rem; font-weight: 600; margin-bottom: 16px; border-bottom: 1px solid var(--color-border); padding-bottom: 8px; }
