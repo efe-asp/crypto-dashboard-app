@@ -1572,7 +1572,7 @@ const ConverterModule = (() => {
   const FIAT_IDS = ['usd', 'eur', 'try'];
   const CRYPTO_IDS = ['bitcoin', 'ethereum', 'binancecoin', 'solana', 'cardano'];
   // Sabit fiat oranları (usd cinsinden)
-  const FIAT_RATES = { usd: 1, eur: 0.92, try: 32.5 };
+  const FIAT_RATES = { usd: 1, eur: 0.92, try: 46.61 };
 
   const MARKET_PAIRS = [
     { from: 'bitcoin',  to: 'usd', label: 'BTC/USD' },
@@ -1739,7 +1739,7 @@ const WalletModule = (() => {
       let usdVal = 0;
       if (w.currency === 'USD') usdVal = w.balance;
       else if (w.currency === 'EUR') usdVal = w.balance * 1.09;
-      else if (w.currency === 'TRY') usdVal = w.balance / 32.5;
+      else if (w.currency === 'TRY') usdVal = w.balance / 46.61;
       else {
         const coin = allCoins.find(c => c.symbol?.toUpperCase() === w.currency);
         if (coin) usdVal = w.balance * (coin.current_price || 0);
