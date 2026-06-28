@@ -2566,6 +2566,15 @@ const LivePriceModule = (() => {
 // ============================================================
 const App = {
   async init() {
+    const logoHome = document.getElementById('logoHome');
+    if (logoHome) {
+      logoHome.addEventListener('click', (e) => {
+        e.preventDefault();
+        TabRouter.goTo('markets');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      });
+    }
+
     // 0. Canlı döviz kurlarını çek
     await GlobalRates.init();
 
