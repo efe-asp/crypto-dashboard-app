@@ -846,7 +846,7 @@ const MarketsModule = (() => {
     tbody.querySelectorAll('tr[data-id]').forEach(row => {
       row.addEventListener('click', (e) => {
         if (e.target.closest('.watchlist-btn')) return;
-        CoinModal.open(row.dataset.id, allCoins.find(c => c.id === row.dataset.id));
+        CoinDetailModule.open(row.dataset.id, allCoins.find(c => c.id === row.dataset.id));
       });
     });
 
@@ -886,7 +886,7 @@ const MarketsModule = (() => {
     grid.querySelectorAll('.trending-card').forEach(card => {
       const handler = () => {
         const coin = allCoins.find(c => c.id === card.dataset.id);
-        CoinModal.open(card.dataset.id, coin || null);
+        CoinDetailModule.open(card.dataset.id, coin || null);
       };
       card.addEventListener('click', handler);
       card.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') handler(); });
@@ -1099,7 +1099,7 @@ const NavSearch = (() => {
       results.querySelectorAll('.search-result-item').forEach(item => {
         item.addEventListener('click', () => {
           document.getElementById('searchDropdown').hidden = true;
-          CoinModal.open(item.dataset.id, null);
+          CoinDetailModule.open(item.dataset.id, null);
         });
       });
     } catch {
@@ -1111,9 +1111,323 @@ const NavSearch = (() => {
 })();
 
 // ============================================================
-// COIN DETAIL MODAL
+// COIN DETAIL MODULE (BORSA TERMINALI & ORDER BOOK)
 // ============================================================
-const CoinModal = (() => {
+const CoinDetailModule = (() => {
+  let priceChartInstance = null;
+  let currentCoin = null;
+  let obTimer = null;
+  
+  const view = () => document.getElementById('coinDetailView');
+
+  const open = async (coinId, previewData = null) => {
+    currentCoin = previewData || MarketsModule.getAllCoins().find(c => c.id === coinId) || { id: coinId };
+    
+    // Açılış Animasyonu ve State
+    const v = view();
+    v.hidden = false;
+    setTimeout(() => v.classList.add('show'), 10);
+    document.body.style.overflow = 'hidden';
+
+    if (previewData || currentCoin.name) populateData(currentCoin);
+
+    // Grafik Yükle
+    showChartLoader(true);
+    await loadChart(coinId, 7);
+
+    // Order Book Başlat
+    startOrderBook();
+    
+    // Sentiment Başlat
+    loadSentiment(coinId);
+    
+    // Trade Widget Güncelle
+    updateTradeWidget(coinId);
+  };
+
+  const close = () => {
+    const v = view();
+    v.classList.remove('show');
+    setTimeout(() => { v.hidden = true; }, 300);
+    document.body.style.overflow = '';
+    currentCoin = null;
+    if (priceChartInstance) { priceChartInstance.destroy(); priceChartInstance = null; }
+    clearInterval(obTimer);
+  };
+
+  const populateData = (c) => {
+    const s = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+    const logo = document.getElementById('cdLogo');
+    if (logo && c.image) { logo.src = c.image; logo.alt = c.name; }
+    s('cdTitle',  c.name || '—');
+    s('cdSymbol', c.symbol?.toUpperCase() || '—');
+    s('cdRank',   `#${c.market_cap_rank || '—'}`);
+
+    const cur = MarketsModule.getCurrency();
+    s('cdPrice', Fmt.price(c.current_price || 0, cur));
+    
+    s('obCurrentPrice', Fmt.price(c.current_price || 0, 'usd'));
+
+    const setBadge = (id, val) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.textContent = id.replace('cd', '').replace('h', 's ').replace('d', 'g ') + Fmt.pct(val);
+      el.className = `change-badge ${Fmt.pctClass(val)}`;
+    };
+    setBadge('cd1h',  c.price_change_percentage_1h_in_currency);
+    setBadge('cd24h', c.price_change_percentage_24h_in_currency || c.price_change_percentage_24h);
+    setBadge('cd7d',  c.price_change_percentage_7d_in_currency);
+
+    s('cdMcap',      Fmt.compact(c.market_cap, cur));
+    s('cdVol',       Fmt.compact(c.total_volume, cur));
+    s('cdSupply',    Fmt.supply(c.circulating_supply));
+    s('cdMaxSupply', Fmt.supply(c.max_supply));
+    
+    const hEl = document.getElementById('cdHigh');
+    if (hEl) { hEl.textContent = Fmt.price(c.high_24h, cur); hEl.className = 'positive'; }
+    const lEl = document.getElementById('cdLow');
+    if (lEl) { lEl.textContent = Fmt.price(c.low_24h, cur); lEl.className = 'negative'; }
+    
+    s('cdATH',       Fmt.price(c.ath, cur));
+    s('cdATHChange', Fmt.pct(c.ath_change_percentage));
+  };
+
+  const loadChart = async (coinId, days) => {
+    showChartLoader(true);
+    try {
+      const data = await ApiService.getChart(coinId, days.toString());
+      renderChart(data.data?.prices || [], days);
+    } catch (err) {
+      console.error('Chart load error:', err);
+    } finally {
+      showChartLoader(false);
+    }
+  };
+
+  const renderChart = (prices, days) => {
+    const canvas = document.getElementById('cdPriceChart');
+    if (!canvas || !prices.length) return;
+
+    if (priceChartInstance) priceChartInstance.destroy();
+
+    const labels = prices.map(p => {
+      const d = new Date(p[0]);
+      return days <= 1 ? d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                       : d.toLocaleDateString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    });
+    const values = prices.map(p => p[1]);
+    const isPos  = values[values.length - 1] >= values[0];
+    const color  = isPos ? '#00d4a0' : '#ff5470';
+
+    const ctx  = canvas.getContext('2d');
+    const grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+    grad.addColorStop(0, isPos ? 'rgba(0,212,160,0.25)' : 'rgba(255,84,112,0.25)');
+    grad.addColorStop(1, 'rgba(0,0,0,0)');
+
+    priceChartInstance = new Chart(canvas, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [{
+          data         : values,
+          borderColor  : color,
+          borderWidth  : 2,
+          backgroundColor: grad,
+          fill         : true,
+          tension      : 0.4,
+          pointRadius  : 0,
+          pointHoverRadius: 5,
+          pointHoverBackgroundColor: color,
+        }]
+      },
+      options: {
+        responsive : true,
+        maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            displayColors: false,
+            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+            titleColor: '#ffffff',
+            bodyColor: '#ffffff',
+            borderColor: 'rgba(255, 255, 255, 0.1)',
+            borderWidth: 1,
+            padding: 12,
+            callbacks: {
+              title: (items) => `Zaman: ${items[0].label}`,
+              label: (ctx) => `Fiyat: ${Fmt.price(ctx.parsed.y, MarketsModule.getCurrency())}`
+            }
+          }
+        },
+        scales: {
+          x: { grid : { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#5c5c7a', maxTicksLimit: 6 } },
+          y: { grid : { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#5c5c7a', callback: (v) => Fmt.compact(v) } }
+        }
+      }
+    });
+  };
+
+  const showChartLoader = (show) => {
+    const loader = document.getElementById('cdChartLoader');
+    if (loader) loader.hidden = !show;
+  };
+
+  /* --- ORDER BOOK SIMULATION --- */
+  const startOrderBook = () => {
+    clearInterval(obTimer);
+    const renderOb = () => {
+      if (!currentCoin) return;
+      const basePrice = currentCoin.current_price || 100;
+      
+      const generateRows = (isSell) => {
+        let html = '';
+        for (let i = 0; i < 5; i++) {
+          const offset = basePrice * (Math.random() * 0.005);
+          const price = isSell ? (basePrice + offset) : (basePrice - offset);
+          const amount = Math.random() * 2 + 0.01;
+          const total = price * amount;
+          const bgWidth = Math.floor(Math.random() * 100) + '%';
+          html += `
+            <div class="ob-row">
+              <div class="ob-bg" style="width:${bgWidth}"></div>
+              <span class="ob-price">${price.toPrecision(6)}</span>
+              <span>${amount.toFixed(4)}</span>
+              <span>${Fmt.compact(total, 'usd')}</span>
+            </div>
+          `;
+        }
+        return html;
+      };
+
+      const sells = document.getElementById('obSells');
+      const buys = document.getElementById('obBuys');
+      if(sells) sells.innerHTML = generateRows(true);
+      if(buys) buys.innerHTML = generateRows(false);
+    };
+    
+    renderOb();
+    obTimer = setInterval(renderOb, 1500); 
+  };
+
+  /* --- MARKET SENTIMENT --- */
+  const loadSentiment = (coinId) => {
+    const key = `sentiment_${coinId}`;
+    let data = JSON.parse(localStorage.getItem(key)) || { bull: 50, bear: 50, userVoted: false };
+    updateSentimentUI(data);
+  };
+
+  const voteSentiment = (type) => {
+    if (!currentCoin) return;
+    const key = `sentiment_${currentCoin.id}`;
+    let data = JSON.parse(localStorage.getItem(key)) || { bull: 50, bear: 50, userVoted: false };
+    if (data.userVoted) return Toast.info("Bu coin için zaten oy kullandınız.");
+    
+    if (type === 'bull') data.bull += 1; else data.bear += 1;
+    data.userVoted = true;
+    localStorage.setItem(key, JSON.stringify(data));
+    updateSentimentUI(data);
+    Toast.success("Oyunuz kaydedildi, teşekkürler!");
+  };
+
+  const updateSentimentUI = (data) => {
+    const total = data.bull + data.bear;
+    const bullPct = total > 0 ? Math.round((data.bull / total) * 100) : 50;
+    const bearPct = 100 - bullPct;
+    
+    const bar = document.getElementById('cdBullBar');
+    if (bar) bar.style.width = bullPct + '%';
+    
+    const bLbl = document.getElementById('cdBullPct');
+    const brLbl = document.getElementById('cdBearPct');
+    if (bLbl) bLbl.textContent = `%${bullPct} Boğa`;
+    if (brLbl) brLbl.textContent = `%${bearPct} Ayı`;
+  };
+
+  /* --- QUICK TRADE WIDGET --- */
+  let tradeSide = 'buy';
+  const updateTradeWidget = (coinId) => {
+    if(!Auth.isLoggedIn()) {
+      const bEl = document.getElementById('cdAvailableBalance');
+      if(bEl) bEl.textContent = 'Giriş Yapılmadı';
+      return;
+    }
+    const curLabel = document.getElementById('cdTradeCurrencyLabel');
+    if(curLabel) curLabel.textContent = currentCoin?.symbol?.toUpperCase() || 'Coin';
+    
+    ApiService.getWallet().then(res => {
+      const wallets = res.data || [];
+      const el = document.getElementById('cdAvailableBalance');
+      if(!el) return;
+      if (tradeSide === 'buy') {
+        const usdWallet = wallets.find(w => w.currency === 'USD');
+        el.textContent = Fmt.price(usdWallet ? usdWallet.balance : 0, 'usd');
+      } else {
+        const coinWallet = wallets.find(w => w.currency === currentCoin?.symbol?.toUpperCase());
+        el.textContent = Fmt.cryptoAmount(coinWallet ? coinWallet.balance : 0) + ' ' + (currentCoin?.symbol?.toUpperCase() || '');
+      }
+    }).catch(e => console.log(e));
+  };
+
+  const submitTrade = async () => {
+    if (!Auth.isLoggedIn()) { AuthModal.open(); return; }
+    if (!currentCoin) return;
+    
+    const amount = parseFloat(document.getElementById('cdTradeAmount').value);
+    if (!amount || amount <= 0) return Toast.warning("Lütfen geçerli miktar girin.");
+    
+    const sym = currentCoin.symbol.toUpperCase();
+    const btn = document.getElementById('cdTradeBtn');
+    btn.disabled = true;
+    btn.textContent = "İşleniyor...";
+    
+    try {
+      await ApiService.trade(sym, tradeSide, amount);
+      Toast.success("İşlem Başarılı!", `${amount} adet ${sym} emri tamamlandı.`);
+      document.getElementById('cdTradeAmount').value = '';
+      updateTradeWidget(currentCoin.id);
+      if(typeof WalletModule !== 'undefined') WalletModule.onTabActivate(); 
+    } catch (err) {
+      Toast.error("İşlem Başarısız", err.message);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = tradeSide === 'buy' ? "Satın Al" : "Sat";
+    }
+  };
+
+  const initEvents = () => {
+    document.getElementById('cdBackBtn')?.addEventListener('click', close);
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !view().hidden) close(); });
+
+    document.querySelectorAll('#coinDetailView .chart-period').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('#coinDetailView .chart-period').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        if (currentCoin) loadChart(currentCoin.id, parseInt(btn.dataset.days));
+      });
+    });
+
+    const setTradeSide = (side) => {
+      tradeSide = side;
+      document.getElementById('cdTabBuy').classList.toggle('active', side === 'buy');
+      document.getElementById('cdTabSell').classList.toggle('active', side === 'sell');
+      const btn = document.getElementById('cdTradeBtn');
+      if(btn) {
+        btn.textContent = side === 'buy' ? 'Satın Al' : 'Sat';
+        btn.className = side === 'buy' ? 'btn btn--buy btn--full' : 'btn btn--sell btn--full';
+      }
+      updateTradeWidget(currentCoin?.id);
+    };
+    document.getElementById('cdTabBuy')?.addEventListener('click', () => setTradeSide('buy'));
+    document.getElementById('cdTabSell')?.addEventListener('click', () => setTradeSide('sell'));
+    
+    document.getElementById('cdTradeBtn')?.addEventListener('click', submitTrade);
+    document.getElementById('cdVoteBull')?.addEventListener('click', () => voteSentiment('bull'));
+    document.getElementById('cdVoteBear')?.addEventListener('click', () => voteSentiment('bear'));
+  };
+
+  return { open, close, initEvents };
+})();
   let priceChartInstance = null;
   let currentCoinId = null;
 
@@ -2486,8 +2800,8 @@ const App = {
     // 5. Tema & dil kontrolleri
     initControls();
 
-    // 6. Coin Modal
-    CoinModal.initEvents();
+    // 6. Coin Detail
+    CoinDetailModule.initEvents();
 
     // 7. Navbar Search
     NavSearch.init();

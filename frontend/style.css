@@ -2123,7 +2123,103 @@ ul { list-style: none; }
   border-color: var(--color-positive, #00d4a0);
   background: var(--color-positive, #00d4a0);
 }
-.dw-tab-nav > button svg {
   width: 14px;
   height: 14px;
 }
+
+/* =========================================================
+   COIN DETAIL VIEW (BORSA TERMINALI)
+========================================================= */
+.coin-detail-view {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 9999;
+  background-color: var(--bg-main);
+  overflow-y: auto;
+  opacity: 0;
+  transform: translateY(20px);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+.coin-detail-view.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.cd-top-bar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--color-border);
+  backdrop-filter: blur(10px);
+}
+.cd-back-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  font-size: 1rem;
+}
+
+.cd-container {
+  padding: 24px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+.cd-layout {
+  display: grid;
+  grid-template-columns: 1fr 380px;
+  gap: 24px;
+}
+@media (max-width: 1100px) {
+  .cd-layout { grid-template-columns: 1fr; }
+}
+
+/* Sol Sütun */
+.cd-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 24px;
+  border-radius: var(--radius-lg);
+  margin-bottom: 24px;
+}
+.cd-header__info { display: flex; align-items: center; gap: 16px; }
+.cd-header__info h2 { font-size: 1.5rem; margin-bottom: 4px; }
+.cd-header__badges { display: flex; gap: 8px; }
+.cd-header__price-area { text-align: right; }
+.cd-price { font-size: 2rem; font-weight: 700; font-family: 'JetBrains Mono', monospace; margin-bottom: 8px; }
+.cd-changes { display: flex; gap: 8px; justify-content: flex-end; }
+.cd-chart-card { padding: 24px; border-radius: var(--radius-lg); margin-bottom: 24px; }
+.cd-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  padding: 24px;
+  border-radius: var(--radius-lg);
+}
+
+/* Sağ Sütun Widgetlar */
+.cd-widget-title { font-size: 1.1rem; font-weight: 600; margin-bottom: 16px; border-bottom: 1px solid var(--color-border); padding-bottom: 8px; }
+.cd-trade-widget, .cd-order-book, .cd-sentiment { padding: 24px; border-radius: var(--radius-lg); margin-bottom: 24px; }
+
+/* Emir Defteri (Order Book) */
+.ob-header { display: grid; grid-template-columns: 1fr 1fr 1fr; font-size: 0.75rem; color: var(--color-text-muted); margin-bottom: 8px; text-align: right; }
+.ob-header span:first-child { text-align: left; }
+.ob-list { display: flex; flex-direction: column; gap: 4px; font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; }
+.ob-row { display: grid; grid-template-columns: 1fr 1fr 1fr; text-align: right; position: relative; overflow: hidden; padding: 2px 0; }
+.ob-row span:first-child { text-align: left; }
+.ob-row span { position: relative; z-index: 1; }
+.ob-bg { position: absolute; top: 0; right: 0; height: 100%; opacity: 0.15; z-index: 0; transition: width 0.3s ease; }
+.ob-sells .ob-bg { background: var(--color-negative); }
+.ob-sells .ob-price { color: var(--color-negative); }
+.ob-buys .ob-bg { background: var(--color-positive); }
+.ob-buys .ob-price { color: var(--color-positive); }
+.ob-spread { text-align: center; font-size: 1.1rem; font-weight: 700; padding: 12px 0; margin: 8px 0; border-top: 1px solid var(--color-border); border-bottom: 1px solid var(--color-border); }
+
+/* Sentiment Bar */
+.sentiment-bar { width: 100%; height: 8px; background: var(--color-negative); border-radius: 4px; overflow: hidden; }
+.sentiment-bar__fill { height: 100%; background: var(--color-positive); transition: width 0.4s ease; }
