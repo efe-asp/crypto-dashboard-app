@@ -1121,28 +1121,29 @@ const CoinDetailModule = (() => {
   const view = () => document.getElementById('coinDetailView');
 
   const open = async (coinId, previewData = null) => {
-    currentCoin = previewData || MarketsModule.getAllCoins().find(c => c.id === coinId) || { id: coinId };
-    
-    // Açılış Animasyonu ve State
-    const v = view();
-    v.hidden = false;
-    setTimeout(() => v.classList.add('show'), 10);
-    document.body.style.overflow = 'hidden';
+    try {
+      if (typeof Toast !== 'undefined') Toast.info("Detay sayfası yükleniyor...");
+      
+      currentCoin = previewData || MarketsModule.getAllCoins().find(c => c.id === coinId) || { id: coinId };
+      
+      const v = view();
+      if (!v) { alert("coinDetailView DOM elemanı bulunamadı!"); return; }
+      v.hidden = false;
+      setTimeout(() => v.classList.add('show'), 10);
+      document.body.style.overflow = 'hidden';
 
-    if (previewData || currentCoin.name) populateData(currentCoin);
+      if (previewData || currentCoin.name) populateData(currentCoin);
 
-    // Grafik Yükle
-    showChartLoader(true);
-    await loadChart(coinId, 7);
+      showChartLoader(true);
+      await loadChart(coinId, 7);
 
-    // Order Book Başlat
-    startOrderBook();
-    
-    // Sentiment Başlat
-    loadSentiment(coinId);
-    
-    // Trade Widget Güncelle
-    updateTradeWidget(coinId);
+      startOrderBook();
+      loadSentiment(coinId);
+      updateTradeWidget(coinId);
+    } catch (e) {
+      alert("Hata oluştu: " + e.message + "\n\nStack: " + e.stack);
+      console.error(e);
+    }
   };
 
   const close = () => {
