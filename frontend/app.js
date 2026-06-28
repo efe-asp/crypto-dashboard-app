@@ -1126,7 +1126,7 @@ const CoinDetailModule = (() => {
       
       // Tab panel geçişi
       if (typeof TabRouter !== 'undefined') {
-        TabRouter.navigate('coindetail');
+        TabRouter.goTo('coindetail');
       }
 
       if (previewData || currentCoin.name) populateData(currentCoin);
@@ -1150,7 +1150,7 @@ const CoinDetailModule = (() => {
     if (priceChartInstance) { priceChartInstance.destroy(); priceChartInstance = null; }
     clearInterval(obTimer);
     if (typeof TabRouter !== 'undefined') {
-      TabRouter.navigate('markets');
+      TabRouter.goTo('markets');
     }
   };
 
