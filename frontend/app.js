@@ -44,6 +44,7 @@ const GlobalRates = {
 // ============================================================
 const LANGS = {
   tr: {
+    nav_home      : 'Ana Sayfa',
     nav_markets   : 'Piyasalar',
     nav_trade     : 'Al-Sat',
     nav_converter : 'Dönüştür',
@@ -86,6 +87,8 @@ const LANGS = {
     trending_subtitle: 'Son 24 saatte en çok aranan coinler',
     market_title     : 'Piyasa Tablosu',
     market_subtitle  : 'Piyasa değerine göre sıralanmış coinler',
+    market_page_title: 'Kapsamlı Piyasalar',
+    market_page_subtitle: 'Tüm kripto varlıkların anlık verilerini detaylı inceleyin ve sıralayın',
 
     th_coin   : 'Coin',
     th_price  : 'Fiyat',
@@ -182,6 +185,7 @@ const LANGS = {
   },
 
   en: {
+    nav_home      : 'Home',
     nav_markets   : 'Markets',
     nav_trade     : 'Trade',
     nav_converter : 'Convert',
@@ -224,6 +228,8 @@ const LANGS = {
     trending_subtitle: 'Most searched coins in the last 24 hours',
     market_title     : 'Market Table',
     market_subtitle  : 'Coins sorted by market cap',
+    market_page_title: 'Comprehensive Markets',
+    market_page_subtitle: 'Examine and sort all crypto assets in detail',
 
     th_coin   : 'Coin',
     th_price  : 'Price',
@@ -518,7 +524,7 @@ const Auth = (() => {
 // TAB ROUTER
 // ============================================================
 const TabRouter = (() => {
-  let currentTab = 'markets';
+  let currentTab = 'home';
 
   const navigate = (tabName) => {
     if (currentTab === tabName) return;
@@ -550,9 +556,9 @@ const TabRouter = (() => {
       btn.addEventListener('click', () => navigate(btn.dataset.tab));
     });
 
-    // Başlangıçta markets tab aktif
-    document.getElementById('tab-markets').classList.add('active');
-    document.getElementById('tab-markets').hidden = false;
+    // Başlangıçta home tab aktif
+    document.getElementById('tab-home').classList.add('active');
+    document.getElementById('tab-home').hidden = false;
   };
 
   const getCurrent = () => currentTab;
@@ -978,12 +984,17 @@ const MarketsModule = (() => {
     });
 
     // Sayfalama
+    const scrollToMarket = () => {
+      const el = document.getElementById('marketSection');
+      if (el) window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - 80, behavior: 'smooth' });
+    };
+
     document.getElementById('prevPage')?.addEventListener('click', () => {
-      if (currentPage > 1) { currentPage--; renderTable(); renderPagination(); window.scrollTo(0, 0); }
+      if (currentPage > 1) { currentPage--; renderTable(); renderPagination(); scrollToMarket(); }
     });
     document.getElementById('nextPage')?.addEventListener('click', () => {
       const totalPages = Math.ceil(sortedCoins.length / COINS_PER_PAGE);
-      if (currentPage < totalPages) { currentPage++; renderTable(); renderPagination(); window.scrollTo(0, 0); }
+      if (currentPage < totalPages) { currentPage++; renderTable(); renderPagination(); scrollToMarket(); }
     });
 
     // Tablo içi arama
@@ -2380,10 +2391,10 @@ const initControls = () => {
     I18n.setLang(next);
   });
 
-  // Logo → Markets
+  // Logo → Ana Sayfa
   document.getElementById('logoHome')?.addEventListener('click', (e) => {
     e.preventDefault();
-    TabRouter.goTo('markets');
+    TabRouter.goTo('home');
   });
 };
 
@@ -2570,7 +2581,7 @@ const App = {
     if (logoHome) {
       logoHome.addEventListener('click', (e) => {
         e.preventDefault();
-        TabRouter.goTo('markets');
+        TabRouter.goTo('home');
         window.scrollTo({ top: 0, behavior: 'smooth' });
       });
     }

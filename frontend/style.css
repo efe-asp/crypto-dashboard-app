@@ -33,14 +33,14 @@
   --color-text-inverse:  #0d0d14;
 
   /* Marka */
-  --color-brand:         #7c6af7;
-  --color-brand-glow:    rgba(124, 106, 247, 0.35);
-  --color-brand-hover:   #9a8bff;
-  --color-brand-dark:    #5a4bcc;
+  --color-brand:         #00d4a0;
+  --color-brand-glow:    rgba(0, 212, 160, 0.35);
+  --color-brand-hover:   #33e0b8;
+  --color-brand-dark:    #00a87d;
 
   /* Vurgu */
-  --color-accent:        #00d2ff;
-  --color-accent-glow:   rgba(0, 210, 255, 0.2);
+  --color-accent:        #00ff88;
+  --color-accent-glow:   rgba(0, 255, 136, 0.2);
 
   /* Yeşil / Kırmızı (piyasa renkleri) */
   --color-positive:      #00d4a0;
@@ -60,15 +60,15 @@
   --glass-blur:          blur(20px);
 
   /* Degradeler */
-  --gradient-brand:      linear-gradient(135deg, #7c6af7 0%, #00d2ff 100%);
-  --gradient-hero:       linear-gradient(135deg, #7c6af7 0%, #a855f7 50%, #00d2ff 100%);
+  --gradient-brand:      linear-gradient(135deg, #00d4a0 0%, #00ff88 100%);
+  --gradient-hero:       linear-gradient(135deg, #00d4a0 0%, #33e0b8 50%, #00ff88 100%);
   --gradient-pos:        linear-gradient(135deg, #00d4a0, #00b8d4);
   --gradient-neg:        linear-gradient(135deg, #ff5470, #ff8c42);
 
   /* Blob arka plan */
-  --blob-1: rgba(124, 106, 247, 0.12);
-  --blob-2: rgba(0, 210, 255, 0.08);
-  --blob-3: rgba(168, 85, 247, 0.08);
+  --blob-1: rgba(0, 212, 160, 0.12);
+  --blob-2: rgba(0, 255, 136, 0.08);
+  --blob-3: rgba(51, 224, 184, 0.08);
 
   /* Boyutlar */
   --navbar-h:          64px;
@@ -109,13 +109,13 @@
   --color-text-muted:    #8a8aaa;
   --color-text-inverse:  #ffffff;
 
-  --color-brand:         #6355e8;
-  --color-brand-glow:    rgba(99, 85, 232, 0.25);
-  --color-brand-hover:   #7c6af7;
-  --color-brand-dark:    #4e3fb8;
+  --color-brand:         #00a87d;
+  --color-brand-glow:    rgba(0, 168, 125, 0.25);
+  --color-brand-hover:   #00d4a0;
+  --color-brand-dark:    #007a5a;
 
-  --color-accent:        #0099cc;
-  --color-accent-glow:   rgba(0, 153, 204, 0.15);
+  --color-accent:        #00cc66;
+  --color-accent-glow:   rgba(0, 204, 102, 0.15);
 
   --color-positive:      #00a87d;
   --color-positive-bg:   rgba(0, 168, 125, 0.1);
@@ -127,9 +127,9 @@
   --glass-border:        rgba(0, 0, 0, 0.08);
   --glass-shadow:        0 8px 32px rgba(0, 0, 0, 0.08);
 
-  --blob-1: rgba(99, 85, 232, 0.06);
-  --blob-2: rgba(0, 153, 204, 0.04);
-  --blob-3: rgba(168, 85, 247, 0.04);
+  --blob-1: rgba(0, 168, 125, 0.06);
+  --blob-2: rgba(0, 204, 102, 0.04);
+  --blob-3: rgba(0, 212, 160, 0.04);
 
   --shadow-sm:  0 2px 8px rgba(0,0,0,0.06);
   --shadow-md:  0 4px 20px rgba(0,0,0,0.09);
@@ -866,6 +866,7 @@ ul { list-style: none; }
   width: 100%;
   border-collapse: collapse;
   font-size: 0.875rem;
+  table-layout: fixed;
 }
 
 .market-table th {
@@ -885,6 +886,9 @@ ul { list-style: none; }
   padding: 14px 16px;
   border-bottom: 1px solid var(--color-border);
   vertical-align: middle;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .market-table tbody tr:last-child td { border-bottom: none; }
 
@@ -900,19 +904,19 @@ ul { list-style: none; }
   transition: color var(--transition-fast);
 }
 .sortable:hover { color: var(--color-text-primary); }
-.sortable::after { content: ' ↕'; opacity: 0.4; }
+.sortable::after { content: ' ↕'; opacity: 0.4; display: inline-block; width: 14px; text-align: center; }
 .sortable[aria-sort="ascending"]::after  { content: ' ↑'; opacity: 1; color: var(--color-brand); }
 .sortable[aria-sort="descending"]::after { content: ' ↓'; opacity: 1; color: var(--color-brand); }
 
 /* Columns */
-.col-rank  { width: 52px; text-align: center; }
-.col-coin  { min-width: 160px; }
-.col-price { min-width: 110px; text-align: right; }
-.col-1h, .col-24h, .col-7d { width: 80px; text-align: right; }
-.col-mcap  { min-width: 120px; text-align: right; }
-.col-volume { min-width: 120px; text-align: right; }
+.col-rank, .market-table th.col-rank  { width: 64px; text-align: center; }
+.col-coin  { width: auto; }
+.col-price, .market-table th.col-price { width: 120px; text-align: right; }
+.col-1h, .col-24h, .col-7d, .market-table th.col-1h, .market-table th.col-24h, .market-table th.col-7d { width: 100px; text-align: right; }
+.col-mcap, .market-table th.col-mcap  { width: 140px; text-align: right; }
+.col-volume, .market-table th.col-volume { width: 140px; text-align: right; }
 .col-spark { width: 100px; }
-.col-action { width: 52px; text-align: center; }
+.col-action, .market-table th.col-action { width: 52px; text-align: center; }
 
 .td-rank { text-align: center; color: var(--color-text-muted); font-size: 0.8rem; font-weight: 600; }
 
@@ -938,7 +942,7 @@ ul { list-style: none; }
 .coin-symbol { font-size: 0.75rem; color: var(--color-text-muted); text-transform: uppercase; }
 
 .td-price { font-weight: 600; font-family: 'JetBrains Mono', monospace; text-align: right; }
-.td-right { text-align: right; }
+.td-right, .market-table th.td-right { text-align: right; }
 .td-volume { text-align: right; color: var(--color-text-secondary); font-size: 0.82rem; font-family: 'JetBrains Mono', monospace; }
 .td-mcap   { text-align: right; font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; }
 

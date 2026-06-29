@@ -55,7 +55,7 @@
 
       <!-- Sekmeler (Ana Navigasyon) -->
       <nav class="tab-nav" role="tablist" aria-label="Ana navigasyon sekmeleri" id="mainTabNav">
-        <button class="tab-btn active" data-tab="markets" role="tab" aria-selected="true" aria-controls="tab-markets" id="btn-markets">
+        <button class="tab-btn" data-tab="markets" role="tab" aria-selected="false" aria-controls="tab-markets" id="btn-markets">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
           <span data-i18n="nav_markets">Piyasalar</span>
         </button>
@@ -156,9 +156,9 @@
   <main class="main-content" id="mainContent" role="main">
 
     <!-- ================================================
-         📊 TAB 1: PİYASALAR
+         🏠 TAB 0: ANA SAYFA
     ================================================ -->
-    <div class="tab-panel active" id="tab-markets" role="tabpanel" aria-labelledby="btn-markets">
+    <div class="tab-panel active" id="tab-home" role="tabpanel" aria-labelledby="btn-home">
       <div class="container">
 
         <!-- Hero -->
@@ -222,15 +222,29 @@
           </div>
         </section>
 
+      </div><!-- /.container -->
+    </div><!-- /#tab-home -->
+
+    <!-- ================================================
+         📊 TAB 1: PİYASALAR
+    ================================================ -->
+    <div class="tab-panel" id="tab-markets" role="tabpanel" aria-labelledby="btn-markets" hidden>
+      <div class="container">
+        <div class="tab-header">
+          <h2 class="tab-page-title">
+            <span class="gradient-text" data-i18n="market_page_title">Kapsamlı Piyasalar</span>
+          </h2>
+          <p class="tab-page-subtitle" data-i18n="market_page_subtitle">Tüm kripto varlıkların anlık verilerini detaylı inceleyin ve sıralayın</p>
+        </div>
+
         <!-- Piyasa Tablosu -->
-        <section class="section" id="marketSection" aria-labelledby="marketTitle">
-          <div class="section__header">
+        <section class="section glass" id="marketSection" aria-labelledby="marketTitle" style="padding: 24px; border-radius: var(--radius-xl); margin-bottom: 40px;">
+          <div class="section__header" style="margin-bottom: 24px;">
             <div>
-              <h2 class="section__title" id="marketTitle">
+              <h3 class="section__title" id="marketTitle" style="font-size: 1.1rem; margin-bottom: 4px;">
                 <span class="section-icon" aria-hidden="true">📊</span>
                 <span data-i18n="market_title">Piyasa Tablosu</span>
-              </h2>
-              <p class="section__subtitle" data-i18n="market_subtitle">Piyasa değerine göre sıralanmış coinler</p>
+              </h3>
             </div>
             <div class="market-controls">
               <!-- Arama (tablo içi) -->
@@ -248,7 +262,7 @@
           </div>
 
           <!-- Tablo -->
-          <div class="table-wrapper">
+          <div class="table-wrapper" style="border: none; background: transparent; box-shadow: none;">
             <table class="market-table" id="marketTable" aria-label="Kripto para piyasa tablosu">
               <thead>
                 <tr>
@@ -265,9 +279,6 @@
                 </tr>
               </thead>
               <tbody id="marketTableBody" aria-live="polite" aria-label="Coin listesi">
-                <tr class="skeleton-row" aria-hidden="true"><td colspan="10"><div class="skeleton-line"></div></td></tr>
-                <tr class="skeleton-row" aria-hidden="true"><td colspan="10"><div class="skeleton-line"></div></td></tr>
-                <tr class="skeleton-row" aria-hidden="true"><td colspan="10"><div class="skeleton-line"></div></td></tr>
                 <tr class="skeleton-row" aria-hidden="true"><td colspan="10"><div class="skeleton-line"></div></td></tr>
                 <tr class="skeleton-row" aria-hidden="true"><td colspan="10"><div class="skeleton-line"></div></td></tr>
                 <tr class="skeleton-row" aria-hidden="true"><td colspan="10"><div class="skeleton-line"></div></td></tr>
