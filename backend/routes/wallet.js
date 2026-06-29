@@ -477,4 +477,63 @@ router.get('/staking', (req, res) => {
   }
 });
 
+// =============================================================
+// GET /api/wallet/history — Simüle Edilmiş Portföy Geçmişi
+// =============================================================
+router.get('/history', (req, res) => {
+  try {
+    const { days = 1 } = req.query;
+    const numDays = parseInt(days, 10);
+    
+    // Gerçek toplam bakiye için USD ve diğer coinlerin güncel değerini hesaplamamız lazım, 
+    // ancak simülasyon olduğu için rastgele baz bir değer (örneğin 100000) üzerinden veya
+    // kullanıcının mevcut cüzdan değerinden türetebiliriz.
+    // Şimdilik sadece frontend'den gelen talebe yanıt verecek anlamlı sahte dalgalanmalar üretiyoruz.
+    
+    // Kullanıcının mevcut toplam bakiyesini bul (yaklaşık)
+    const wallets = db.prepare('SELECT balance FROM wallets WHERE user_id = ?').all(req.user.id);
+    let baseValue = wallets.reduce((sum, w) => sum + w.balance, 0) || 50000;
+    if (baseValue < 1000) baseValue = 50000;
+
+    const dataPoints = numDays === 1 ? 24 : numDays === 7 ? 7 : 30;
+    const labels = [];
+    const data = [];
+    
+    const now = new Date();
+    
+    // Rastgele walk algoritması ile geçmişe dönük veriler oluştur
+    let currentValue = baseValue;
+    const volatility = 0.02; // %2 dalgalanma
+
+    for (let i = dataPoints; i >= 0; i--) {
+      let timeLabel = '';
+      const pointDate = new Date(now);
+      
+      if (numDays === 1) {
+        pointDate.setHours(now.getHours() - i);
+        timeLabel = `${pointDate.getHours()}:00`;
+      } else {
+        pointDate.setDate(now.getDate() - i);
+        timeLabel = `${pointDate.getDate()}/${pointDate.getMonth() + 1}`;
+      }
+      
+      labels.push(timeLabel);
+      
+      if (i === 0) {
+        data.push(baseValue);
+      } else {
+        // Geriye doğru hesapla (rastgele)
+        const change = 1 + (Math.random() * volatility * 2 - volatility);
+        currentValue = currentValue / change;
+        data.push(currentValue);
+      }
+    }
+
+    res.status(200).json({ success: true, labels, data });
+  } catch (error) {
+    console.error('History GET Hatası:', error.message);
+    res.status(500).json({ success: false, message: 'Geçmiş veriler alınamadı.' });
+  }
+});
+
 module.exports = router;

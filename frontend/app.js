@@ -124,7 +124,7 @@ const LANGS = {
     wallet_title        : 'Cüzdanım',
     wallet_subtitle     : 'Bakiyelerinizi yönetin, yatırın veya çekin',
     wallet_login_notice : 'Cüzdanınıza erişmek için giriş yapmanız gerekiyor.',
-    total_portfolio     : 'Toplam Portföy Değeri',
+    total_portfolio     : 'Toplam Varlık Değeri',
     my_assets           : 'Varlıklarım',
     transaction_history : 'İşlem Geçmişi',
     balance_login_notice: 'Bakiyenizi görmek için giriş yapın',
@@ -181,7 +181,10 @@ const LANGS = {
     label_currency     : 'Varlık',
     staking_title      : 'Staking (Kazan)',
     staking_active_amount: 'Kilitli Miktar:',
-    staking_earned     : 'Biriken Faiz:'
+    staking_earned     : 'Biriken Faiz:',
+    risk_score_label   : 'Varlık Risk Skoru',
+    portfolio_history  : 'Varlık Zaman Grafiği',
+    price_alerts_title : 'Fiyat Alarmları'
   },
 
   en: {
@@ -317,7 +320,10 @@ const LANGS = {
     label_currency     : 'Asset',
     staking_title      : 'Staking (Earn)',
     staking_active_amount: 'Locked Amount:',
-    staking_earned     : 'Earned Interest:'
+    staking_earned     : 'Earned Interest:',
+    risk_score_label   : 'Portfolio Risk Score',
+    portfolio_history  : 'Portfolio Time Chart',
+    price_alerts_title : 'Price Alerts'
   }
 };
 
@@ -1828,10 +1834,13 @@ const WalletModule = (() => {
   let walletChartInstance = null;
   let stakingTimer = null;
   let currentStaking = null;
+  let portfolioLineChart = null;
+  let activeAlerts = [];
 
   const onTabActivate = async () => {
     if (!Auth.isLoggedIn()) return;
-    await Promise.all([loadBalances(), loadTransactions(true), loadStaking()]);
+    await Promise.all([loadBalances(), loadTransactions(true), loadStaking(), loadPortfolioHistory(1)]);
+    renderActiveAlerts();
   };
 
   const onAuthChange = () => {
@@ -1861,6 +1870,8 @@ const WalletModule = (() => {
     const allCoins = MarketsModule.getAllCoins();
     let total = 0;
     let totalInvested = 0;
+    let safeValue = 0;
+    let volatileValue = 0;
 
     items.forEach(w => {
       let usdVal = 0;
@@ -1872,6 +1883,12 @@ const WalletModule = (() => {
         if (coin) usdVal = w.balance * (coin.current_price || 0);
       }
       total += usdVal;
+      
+      if (['USD', 'EUR', 'TRY', 'USDT', 'USDC'].includes(w.currency.toUpperCase())) {
+        safeValue += usdVal;
+      } else {
+        volatileValue += usdVal;
+      }
       
       // P&L
       if (w.currency !== 'USD' && w.avg_buy_price && w.balance > 0) {
@@ -1909,6 +1926,32 @@ const WalletModule = (() => {
 
     const sub = document.getElementById('walletTotalSub');
     if (sub) sub.textContent = `${items.length} farklı varlık`;
+    
+    renderRiskScore(safeValue, volatileValue, total);
+  };
+
+  const renderRiskScore = (safe, volatile, total) => {
+    const riskScoreText = document.getElementById('riskScoreText');
+    const riskBarSafe = document.getElementById('riskBarSafe');
+    const riskBarVolatile = document.getElementById('riskBarVolatile');
+    if (!riskScoreText || total === 0) return;
+
+    const safePct = (safe / total) * 100;
+    const volatilePct = (volatile / total) * 100;
+    
+    riskBarSafe.style.width = `${safePct}%`;
+    riskBarVolatile.style.width = `${volatilePct}%`;
+    
+    if (safePct > 70) {
+      riskScoreText.textContent = "Güvenli / Muhafazakar";
+      riskScoreText.style.color = "#2ecc71";
+    } else if (safePct >= 30) {
+      riskScoreText.textContent = "Dengeli";
+      riskScoreText.style.color = "#f39c12";
+    } else {
+      riskScoreText.textContent = "Yüksek Riskli / Agresif";
+      riskScoreText.style.color = "#e74c3c";
+    }
   };
 
   const renderBalances = (items) => {
@@ -2100,8 +2143,43 @@ const WalletModule = (() => {
     }
   };
 
+  let qrCodeInstance = null;
+  const showQrModal = (currency, action) => {
+    const modal = document.getElementById('qrModal');
+    const title = document.getElementById('qrModalTitle');
+    const qrContainer = document.getElementById('qrCodeContainer');
+    const addressInput = document.getElementById('qrWalletAddress');
+    if (!modal || !window.QRCode) return;
+    
+    title.textContent = `${currency} ${action === 'yatırma' ? 'Yatır' : 'Çek'}`;
+    
+    const prefix = currency === 'BTC' ? 'bc1' : '0x';
+    const hash = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+    const fakeAddress = `${prefix}q9a${hash}`.substring(0, 34);
+    addressInput.value = fakeAddress;
+    
+    qrContainer.innerHTML = '';
+    qrCodeInstance = new QRCode(qrContainer, {
+      text: fakeAddress,
+      width: 150,
+      height: 150,
+      colorDark : "#000000",
+      colorLight : "#ffffff",
+      correctLevel : QRCode.CorrectLevel.M
+    });
+    
+    modal.hidden = false;
+  };
+
   const doDeposit = async () => {
+    const currency = document.getElementById('depositCurrency')?.value || 'USD';
     const amount = parseFloat(document.getElementById('depositAmount')?.value);
+    
+    if (currency !== 'USD') {
+      showQrModal(currency, 'yatırma');
+      return;
+    }
+
     if (!amount || amount <= 0) return Toast.warning('Geçerli miktar girin.');
     try {
       await ApiService.deposit(amount);
@@ -2112,7 +2190,14 @@ const WalletModule = (() => {
   };
 
   const doWithdraw = async () => {
+    const currency = document.getElementById('withdrawCurrency')?.value || 'USD';
     const amount = parseFloat(document.getElementById('withdrawAmount')?.value);
+
+    if (currency !== 'USD') {
+      showQrModal(currency, 'çekme');
+      return;
+    }
+
     if (!amount || amount <= 0) return Toast.warning('Geçerli miktar girin.');
     try {
       await ApiService.withdraw(amount);
@@ -2157,6 +2242,128 @@ const WalletModule = (() => {
     } catch (err) { Toast.error('Hata', err.message); }
   };
 
+  const loadPortfolioHistory = async (days = 1) => {
+    try {
+      const token = localStorage.getItem('cn_token');
+      const res = await fetch(`/api/wallet/history?days=${days}`, {
+        headers: { 'Authorization': token ? `Bearer ${token}` : '' }
+      });
+      const json = await res.json();
+      if (json.success) {
+        renderPortfolioChart(json.labels, json.data);
+      }
+    } catch (err) {
+      console.error('Portfolio history load error:', err);
+    }
+  };
+
+  const renderPortfolioChart = (labels, data) => {
+    const ctx = document.getElementById('portfolioLineChart');
+    if (!ctx) return;
+    if (portfolioLineChart) portfolioLineChart.destroy();
+    
+    const gradient = ctx.getContext('2d').createLinearGradient(0, 0, 0, 200);
+    gradient.addColorStop(0, 'rgba(0, 255, 136, 0.5)'); // neon green
+    gradient.addColorStop(1, 'rgba(0, 255, 136, 0.0)');
+    
+    portfolioLineChart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: labels,
+        datasets: [{
+          label: 'Toplam Varlık Değeri',
+          data: data,
+          borderColor: '#00FF88', // neon green
+          backgroundColor: gradient,
+          borderWidth: 2,
+          pointRadius: 0,
+          pointHoverRadius: 4,
+          fill: true,
+          tension: 0.4
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            mode: 'index',
+            intersect: false,
+            backgroundColor: 'rgba(10,10,10,0.9)',
+            titleColor: '#fff',
+            bodyColor: '#00FF88',
+            callbacks: {
+              label: function(context) { return Fmt.price(context.raw, 'usd'); }
+            }
+          }
+        },
+        scales: {
+          x: { display: false },
+          y: { display: false, beginAtZero: false }
+        },
+        interaction: { mode: 'nearest', axis: 'x', intersect: false }
+      }
+    });
+  };
+
+  const addPriceAlert = () => {
+    const currency = document.getElementById('alertCurrency')?.value;
+    const priceStr = document.getElementById('alertPrice')?.value;
+    const targetPrice = parseFloat(priceStr);
+    
+    if (!currency || isNaN(targetPrice) || targetPrice <= 0) {
+      return Toast.warning('Geçerli bir kripto para ve hedef fiyat girin.');
+    }
+    
+    activeAlerts.push({
+      id: Date.now(),
+      currency,
+      targetPrice
+    });
+    
+    document.getElementById('alertPrice').value = '';
+    Toast.success('Alarm kuruldu.');
+    renderActiveAlerts();
+  };
+
+  const renderActiveAlerts = () => {
+    const container = document.getElementById('activeAlertsList');
+    if (!container) return;
+    if (activeAlerts.length === 0) {
+      container.innerHTML = `<p style="font-size:0.85rem; color:var(--color-text-muted);">Aktif alarm yok.</p>`;
+      return;
+    }
+    
+    container.innerHTML = activeAlerts.map(alert => `
+      <div style="display:flex; justify-content:space-between; align-items:center; background:rgba(255,255,255,0.05); padding:8px 12px; border-radius:4px;">
+        <div>
+          <span style="font-weight:600; font-size:0.85rem;">${alert.currency.toUpperCase()}</span>
+          <span style="color:var(--color-text-muted); font-size:0.8rem; margin-left:8px;">Hedef: ${Fmt.price(alert.targetPrice, 'usd')}</span>
+        </div>
+        <button class="btn btn--ghost" style="padding:4px;" onclick="WalletModule.removeAlert(${alert.id})">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </button>
+      </div>
+    `).join('');
+  };
+
+  const removeAlert = (id) => {
+    activeAlerts = activeAlerts.filter(a => a.id !== id);
+    renderActiveAlerts();
+  };
+
+  const checkAlerts = (symbol, currentPrice) => {
+    const triggered = activeAlerts.filter(a => a.currency.toLowerCase() === symbol.toLowerCase());
+    triggered.forEach(alert => {
+      const diff = Math.abs(currentPrice - alert.targetPrice) / alert.targetPrice;
+      if (diff < 0.005) {
+        Toast.success(`🔔 ALARM: ${symbol.toUpperCase()} fiyatı hedefe (${Fmt.price(alert.targetPrice, 'usd')}) yaklaştı/ulaştı!`);
+        removeAlert(alert.id);
+      }
+    });
+  };
+
   const initEvents = () => {
     document.getElementById('walletLoginBtn')?.addEventListener('click', () => AuthModal.open());
     document.getElementById('depositBtn')?.addEventListener('click', doDeposit);
@@ -2165,6 +2372,66 @@ const WalletModule = (() => {
     document.getElementById('stakeBtn')?.addEventListener('click', doStake);
     document.getElementById('unstakeBtn')?.addEventListener('click', doUnstake);
     document.getElementById('loadMoreTransactions')?.addEventListener('click', () => loadTransactions(false));
+
+    // Modal events
+    document.getElementById('closeQrModalBtn')?.addEventListener('click', () => {
+      const modal = document.getElementById('qrModal');
+      if (modal) modal.hidden = true;
+    });
+    
+    document.getElementById('copyAddressBtn')?.addEventListener('click', () => {
+      const input = document.getElementById('qrWalletAddress');
+      if (input) {
+        input.select();
+        document.execCommand('copy');
+        Toast.success('Adres panoya kopyalandı.');
+      }
+    });
+    
+    // Deposit Currency Change
+    document.getElementById('depositCurrency')?.addEventListener('change', (e) => {
+      const amountGroup = document.getElementById('depositAmountGroup');
+      const quickAmounts = document.getElementById('depositQuickAmounts');
+      if (e.target.value === 'USD') {
+        amountGroup.hidden = false;
+        quickAmounts.hidden = false;
+        document.getElementById('depositBtn').textContent = 'Yatır';
+      } else {
+        amountGroup.hidden = true;
+        quickAmounts.hidden = true;
+        document.getElementById('depositBtn').textContent = 'Adres / QR Oluştur';
+      }
+    });
+
+    // Withdraw Currency Change
+    document.getElementById('withdrawCurrency')?.addEventListener('change', (e) => {
+      const amountGroup = document.getElementById('withdrawAmountGroup');
+      if (e.target.value === 'USD') {
+        amountGroup.hidden = false;
+        document.getElementById('withdrawBtn').textContent = 'Çek';
+      } else {
+        amountGroup.hidden = true;
+        document.getElementById('withdrawBtn').textContent = 'Çekim Adresi İste';
+      }
+    });
+    
+    // Portfolio History Chart Events
+    document.querySelectorAll('.time-tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.time-tab-btn').forEach(b => {
+          b.classList.remove('active');
+          b.style.background = 'transparent';
+          b.style.color = 'var(--color-text-muted)';
+        });
+        btn.classList.add('active');
+        btn.style.background = 'rgba(255,255,255,0.1)';
+        btn.style.color = 'white';
+        loadPortfolioHistory(btn.dataset.days);
+      });
+    });
+
+    // Price Alerts Events
+    document.getElementById('addAlertBtn')?.addEventListener('click', addPriceAlert);
 
     // Yatır/Çek/Transfer tab toggle
     document.querySelectorAll('.dw-tab-btn').forEach(btn => {
@@ -2194,7 +2461,7 @@ const WalletModule = (() => {
 
   const init = () => { initEvents(); };
 
-  return { init, onTabActivate, onAuthChange };
+  return { init, onTabActivate, onAuthChange, removeAlert, checkAlerts };
 })();
 
 // ============================================================
@@ -2559,6 +2826,9 @@ const LivePriceModule = (() => {
             MarketsModule.updateLivePrice(sym, newPrice);
             if (TabRouter.getCurrent() === 'trade') {
               TradeModule.updateLivePrice(sym, newPrice);
+            }
+            if (WalletModule && WalletModule.checkAlerts) {
+              WalletModule.checkAlerts(sym, newPrice);
             }
           }
         });

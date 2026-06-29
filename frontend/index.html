@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="description" content="CryptoNova — Gerçek zamanlı kripto piyasa takip, al-sat simülasyonu ve gelişmiş portföy yönetimi platformu." />
+  <meta name="description" content="CryptoNova — Gerçek zamanlı kripto piyasa takip, al-sat simülasyonu ve gelişmiş varlık yönetimi platformu." />
   <meta name="keywords" content="kripto, bitcoin, ethereum, piyasa, borsa, al-sat, cüzdan, takip" />
   <meta name="theme-color" content="#0d0d14" />
   <title>CryptoNova — Kripto Borsa Platformu</title>
@@ -558,7 +558,7 @@
 
           <!-- Toplam değer kartı -->
           <div class="wallet-total-card glass">
-            <div class="wallet-total-card__label" data-i18n="total_portfolio">Toplam Portföy Değeri</div>
+            <div class="wallet-total-card__label" data-i18n="total_portfolio">Toplam Varlık Değeri</div>
             <div class="wallet-total-card__value" id="walletTotalValue">$0.00</div>
             <div class="wallet-total-card__pnl" id="walletTotalPnl"></div>
             <div class="wallet-total-card__sub" id="walletTotalSub"></div>
@@ -579,6 +579,19 @@
                 <div class="wallet-chart-container" style="position:relative; height:200px; width:100%; margin-bottom:16px;">
                   <canvas id="walletChart"></canvas>
                 </div>
+                
+                <!-- VARLIK RİSK SKORU -->
+                <div class="risk-score-container" style="margin-bottom: 24px; padding: 16px; border-radius: var(--radius-md); background: rgba(255,255,255,0.03); border: 1px solid var(--border-color);">
+                  <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                    <span style="font-size: 0.9rem; color: var(--color-text-muted);" data-i18n="risk_score_label">Varlık Risk Skoru</span>
+                    <strong id="riskScoreText" style="font-size: 0.9rem;">Hesaplanıyor...</strong>
+                  </div>
+                  <div style="width: 100%; height: 8px; background: rgba(255,255,255,0.1); border-radius: 4px; overflow: hidden; display: flex;">
+                    <div id="riskBarSafe" style="height: 100%; width: 50%; background: #2ecc71; transition: width 0.3s ease;"></div>
+                    <div id="riskBarVolatile" style="height: 100%; width: 50%; background: #f39c12; transition: width 0.3s ease;"></div>
+                  </div>
+                </div>
+
                 <div id="walletBalanceList">
                   <div class="skeleton-card" style="height:56px;margin-bottom:8px"></div>
                   <div class="skeleton-card" style="height:56px;margin-bottom:8px"></div>
@@ -605,14 +618,22 @@
 
                 <!-- Yatırma -->
                 <div class="dw-panel" id="depositPanel" role="tabpanel">
-                  <div class="form-group">
+                  <div class="form-group" style="margin-bottom: 12px;">
+                    <label class="form-label" for="depositCurrency" data-i18n="label_currency">Varlık Seçin</label>
+                    <select id="depositCurrency" class="form-input">
+                      <option value="USD">USD (Fiat)</option>
+                      <option value="BTC">BTC (Kripto)</option>
+                      <option value="ETH">ETH (Kripto)</option>
+                    </select>
+                  </div>
+                  <div class="form-group" id="depositAmountGroup">
                     <label class="form-label" for="depositAmount" data-i18n="label_amount_usd">Miktar (USD)</label>
                     <div class="input-with-suffix">
                       <input type="number" id="depositAmount" class="form-input" placeholder="100.00" min="1" step="0.01" />
-                      <span class="input-suffix">USD</span>
+                      <span class="input-suffix" id="depositSuffix">USD</span>
                     </div>
                   </div>
-                  <div class="quick-amounts" role="group" style="margin-bottom: 24px;">
+                  <div class="quick-amounts" id="depositQuickAmounts" role="group" style="margin-bottom: 24px;">
                     <button class="quick-btn" data-amount="100">$100</button>
                     <button class="quick-btn" data-amount="500">$500</button>
                     <button class="quick-btn" data-amount="1000">$1K</button>
@@ -623,11 +644,19 @@
 
                 <!-- Çekme -->
                 <div class="dw-panel" id="withdrawPanel" role="tabpanel" hidden>
-                  <div class="form-group">
+                  <div class="form-group" style="margin-bottom: 12px;">
+                    <label class="form-label" for="withdrawCurrency" data-i18n="label_currency">Varlık Seçin</label>
+                    <select id="withdrawCurrency" class="form-input">
+                      <option value="USD">USD (Fiat)</option>
+                      <option value="BTC">BTC (Kripto)</option>
+                      <option value="ETH">ETH (Kripto)</option>
+                    </select>
+                  </div>
+                  <div class="form-group" id="withdrawAmountGroup">
                     <label class="form-label" for="withdrawAmount" data-i18n="label_amount_usd">Miktar (USD)</label>
                     <div class="input-with-suffix">
                       <input type="number" id="withdrawAmount" class="form-input" placeholder="100.00" min="1" step="0.01" />
-                      <span class="input-suffix">USD</span>
+                      <span class="input-suffix" id="withdrawSuffix">USD</span>
                     </div>
                     <p class="form-hint" style="margin-bottom: 24px;">
                       <span data-i18n="label_available">Kullanılabilir:</span>
@@ -665,6 +694,44 @@
 
             <!-- Sağ: İşlem Geçmişi & Staking -->
             <div class="wallet-right">
+
+              <!-- VARLIK LINE CHART -->
+              <div class="portfolio-chart-panel trade-card glass" style="margin-bottom: 24px;">
+                <div class="wallet-section-title" style="display:flex; justify-content:space-between; align-items:center;">
+                  <div>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                    <span data-i18n="portfolio_history">Varlık Zaman Grafiği</span>
+                  </div>
+                  <div class="time-tabs" id="portfolioTimeTabs" style="display:flex; gap:4px;">
+                    <button class="time-tab-btn active" data-days="1" style="font-size:0.75rem; padding:4px 8px; border-radius:4px; border:none; background:rgba(255,255,255,0.1); color:white; cursor:pointer;">1G</button>
+                    <button class="time-tab-btn" data-days="7" style="font-size:0.75rem; padding:4px 8px; border-radius:4px; border:none; background:transparent; color:var(--color-text-muted); cursor:pointer;">7G</button>
+                    <button class="time-tab-btn" data-days="30" style="font-size:0.75rem; padding:4px 8px; border-radius:4px; border:none; background:transparent; color:var(--color-text-muted); cursor:pointer;">1A</button>
+                  </div>
+                </div>
+                <div style="position:relative; height:200px; width:100%;">
+                  <canvas id="portfolioLineChart"></canvas>
+                </div>
+              </div>
+
+              <!-- PRICE ALERTS -->
+              <div class="price-alerts-panel trade-card glass" style="margin-bottom: 24px;">
+                <div class="wallet-section-title">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+                  <span data-i18n="price_alerts_title">Fiyat Alarmları</span>
+                </div>
+                <div class="form-group" style="display:flex; gap:8px; margin-bottom:12px;">
+                  <select id="alertCurrency" class="form-input" style="flex:1;">
+                    <option value="bitcoin">BTC</option>
+                    <option value="ethereum">ETH</option>
+                    <option value="solana">SOL</option>
+                  </select>
+                  <input type="number" id="alertPrice" class="form-input" placeholder="Hedef ($)" style="flex:1;" />
+                  <button class="btn btn--primary" id="addAlertBtn" style="padding: 0 16px;">+</button>
+                </div>
+                <div id="activeAlertsList" style="display:flex; flex-direction:column; gap:8px;">
+                  <!-- Alerts will go here -->
+                </div>
+              </div>
 
               <!-- STAKING (VADELİ) -->
               <div class="staking-panel trade-card glass" style="margin-bottom: 24px;">
@@ -1007,6 +1074,27 @@
 
   <!-- Chart.js CDN -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+  <!-- QR Code CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+  <!-- QR Kod Modalı -->
+  <div class="modal-overlay" id="qrModal" hidden>
+    <div class="modal-content glass" style="max-width: 400px; text-align: center; padding: 24px; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); border-radius: var(--radius-lg); border: 1px solid var(--border-color); z-index: 9999;">
+      <h3 id="qrModalTitle" style="margin-bottom: 16px;">Kripto Yatır</h3>
+      <p style="color: var(--color-text-muted); font-size: 0.9rem; margin-bottom: 16px;">Lütfen seçtiğiniz ağı kullandığınızdan emin olun. Bu adres sadece simülasyon amaçlıdır.</p>
+      <div id="qrCodeContainer" style="background: white; padding: 16px; border-radius: 8px; display: inline-block; margin-bottom: 24px;"></div>
+      <div style="margin-bottom: 24px; text-align: left;">
+        <label style="font-size: 0.8rem; color: var(--color-text-muted); display: block; margin-bottom: 8px;">Yatırma Adresi</label>
+        <div style="display: flex; gap: 8px;">
+          <input type="text" id="qrWalletAddress" class="form-input" readonly style="font-family: monospace; font-size: 0.85rem;" />
+          <button class="btn btn--primary" id="copyAddressBtn" title="Kopyala">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+          </button>
+        </div>
+      </div>
+      <button class="btn btn--ghost btn--full" id="closeQrModalBtn">Kapat</button>
+    </div>
+  </div>
 
   <!-- Ana Uygulama -->
   <script src="app.js"></script>
