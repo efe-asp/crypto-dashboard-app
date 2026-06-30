@@ -27,6 +27,7 @@ const sendTokenResponse = (user, statusCode, res, message) => {
       username : user.username,
       email    : user.email,
       watchlist: user.watchlist,
+      is_verified: user.is_verified,
       createdAt: user.createdAt
     }
   });
@@ -94,6 +95,43 @@ router.post('/login', async (req, res) => {
 });
 
 // =============================================================
+// POST /api/auth/send-verification-code
+// =============================================================
+router.post('/send-verification-code', protect, async (req, res) => {
+  try {
+    const code = UserModel.sendVerificationCode(req.user.id);
+    // Simulating email send by logging to the console
+    console.log(`\n==============================================`);
+    console.log(`✉️ YENİ DOĞRULAMA KODU (E-Posta Simülasyonu)`);
+    console.log(`Alıcı: ${req.user.email}`);
+    console.log(`KOD: ${code}`);
+    console.log(`==============================================\n`);
+    
+    res.status(200).json({ success: true, message: 'Doğrulama kodu e-postanıza gönderildi.' });
+  } catch (error) {
+    console.error('Send Code Hatası:', error);
+    res.status(500).json({ success: false, message: 'Kod gönderilirken bir hata oluştu.' });
+  }
+});
+
+// =============================================================
+// POST /api/auth/verify-code
+// =============================================================
+router.post('/verify-code', protect, async (req, res) => {
+  try {
+    const { code } = req.body;
+    if (!code) {
+      return res.status(400).json({ success: false, message: 'Kod gereklidir.' });
+    }
+    
+    UserModel.verifyCode(req.user.id, code);
+    res.status(200).json({ success: true, message: 'Hesabınız başarıyla doğrulandı.' });
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message });
+  }
+});
+
+// =============================================================
 // GET /api/auth/me — Korunan
 // =============================================================
 router.get('/me', protect, (req, res) => {
@@ -104,6 +142,7 @@ router.get('/me', protect, (req, res) => {
       username : req.user.username,
       email    : req.user.email,
       watchlist: req.user.watchlist,
+      is_verified: req.user.is_verified,
       createdAt: req.user.createdAt
     }
   });

@@ -156,6 +156,40 @@ const getWatchlist = (userId) => {
   return parseWatchlist(user.watchlist);
 };
 
+/**
+ * E-posta için 6 haneli doğrulama kodu oluşturur ve kaydeder.
+ */
+const sendVerificationCode = (userId) => {
+  const code = Math.floor(100000 + Math.random() * 900000).toString();
+  // 15 dakika geçerli (şu anki saate 15 dk ekle)
+  const expires = new Date(Date.now() + 15 * 60000).toISOString();
+  
+  db.prepare('UPDATE users SET verification_code = ?, verification_expires = ?, updated_at = datetime(\'now\') WHERE id = ?')
+    .run(code, expires, userId);
+    
+  return code;
+};
+
+/**
+ * Kullanıcının girdiği 6 haneli kodu doğrular.
+ */
+const verifyCode = (userId, code) => {
+  const user = db.prepare('SELECT verification_code, verification_expires FROM users WHERE id = ?').get(userId);
+  if (!user) throw new Error('Kullanıcı bulunamadı.');
+  
+  if (!user.verification_code || user.verification_code !== code.toString().trim()) {
+    throw new Error('Hatalı doğrulama kodu.');
+  }
+  
+  if (new Date() > new Date(user.verification_expires)) {
+    throw new Error('Doğrulama kodunun süresi dolmuş.');
+  }
+  
+  // Başarılı, kodu temizle ve onaylı yap
+  db.prepare('UPDATE users SET is_verified = 1, verification_code = NULL, verification_expires = NULL, updated_at = datetime(\'now\') WHERE id = ?').run(userId);
+  return true;
+};
+
 module.exports = {
   createUser,
   findById,
@@ -163,5 +197,7 @@ module.exports = {
   findByCredentials,
   addToWatchlist,
   removeFromWatchlist,
-  getWatchlist
+  getWatchlist,
+  sendVerificationCode,
+  verifyCode
 };

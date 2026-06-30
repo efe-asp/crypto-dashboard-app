@@ -99,7 +99,8 @@ app.get('/api/health', (req, res) => {
 // =============================================================
 // SPA — Tüm bilinmeyen route'lar index.html'e yönlendirilir
 // =============================================================
-app.get('*', (req, res) => {
+app.get('*', (req, res, next) => {
+  if (req.path.startsWith('/api/')) return next();
   res.sendFile(path.join(__dirname, '..', 'frontend', 'index.html'));
 });
 

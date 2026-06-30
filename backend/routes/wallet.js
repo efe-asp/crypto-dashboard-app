@@ -381,10 +381,11 @@ router.post('/transfer', (req, res) => {
 });
 
 // =============================================================
-// GET /api/wallet/export-csv — İşlem Geçmişini CSV İndir
+// GET /api/wallet/export-excel — İşlem Geçmişini Excel İndir
 // =============================================================
-router.get('/export-csv', (req, res) => {
+router.get('/export-excel', async (req, res) => {
   try {
+    const ExcelJS = require('exceljs');
     const transactions = db.prepare(`
       SELECT coin_symbol, type, amount, price_at_time, total_cost, timestamp
       FROM transactions
@@ -392,16 +393,66 @@ router.get('/export-csv', (req, res) => {
       ORDER BY timestamp DESC
     `).all(req.user.id);
 
-    let csvContent = 'Tarih,Varlik,Tip,Miktar,Islem_Fiyati,Toplam_Tutar\n';
-    transactions.forEach(t => {
-      csvContent += `"${t.timestamp}","${t.coin_symbol}","${t.type}","${t.amount}","${t.price_at_time}","${t.total_cost}"\n`;
+    const workbook = new ExcelJS.Workbook();
+    workbook.creator = 'CryptoNova';
+    const sheet = workbook.addWorksheet('İşlem Geçmişi', {
+      views: [{ state: 'frozen', ySplit: 5 }]
     });
 
-    res.setHeader('Content-Type', 'text/csv');
-    res.setHeader('Content-Disposition', 'attachment; filename="islemler.csv"');
-    res.status(200).send(csvContent);
+    // Logo / Başlık kısmı (Sitenin ismi)
+    sheet.mergeCells('A1:F3');
+    const titleCell = sheet.getCell('A1');
+    titleCell.value = 'CryptoNova İşlem Raporu';
+    titleCell.font = { name: 'Arial', size: 24, bold: true, color: { argb: 'FF00FF88' } };
+    titleCell.alignment = { vertical: 'middle', horizontal: 'center' };
+    titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0d0d14' } };
+
+    // Boşluk
+    sheet.addRow([]);
+
+    // Sütun Başlıkları
+    sheet.getRow(5).values = ['Tarih', 'Varlık', 'İşlem Tipi', 'Miktar', 'İşlem Fiyatı ($)', 'Toplam Tutar ($)'];
+    sheet.getRow(5).font = { bold: true, color: { argb: 'FFFFFFFF' } };
+    sheet.getRow(5).alignment = { horizontal: 'center' };
+    sheet.getRow(5).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1a1a24' } };
+
+    // Sütun Genişlikleri
+    sheet.columns = [
+      { key: 'date', width: 22 },
+      { key: 'asset', width: 12 },
+      { key: 'type', width: 15 },
+      { key: 'amount', width: 15 },
+      { key: 'price', width: 18 },
+      { key: 'total', width: 18 }
+    ];
+
+    // Verileri ekleme
+    transactions.forEach(t => {
+      const isPositive = ['BUY', 'DEPOSIT', 'TRANSFER_IN'].includes(t.type);
+      const row = sheet.addRow([
+        t.timestamp,
+        t.coin_symbol || 'USD',
+        t.type,
+        t.amount,
+        t.price_at_time || 0,
+        t.total_cost || 0
+      ]);
+
+      // Renklendirmeler
+      row.alignment = { horizontal: 'center' };
+      row.getCell(3).font = { color: { argb: isPositive ? 'FF00FF88' : 'FFFF0055' }, bold: true };
+      row.getCell(4).numFmt = '#,##0.0000';
+      row.getCell(5).numFmt = '"$"#,##0.00';
+      row.getCell(6).numFmt = '"$"#,##0.00';
+    });
+
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', 'attachment; filename="CryptoNova_Islemler.xlsx"');
+    
+    await workbook.xlsx.write(res);
+    res.end();
   } catch (error) {
-    console.error('CSV Export Hatası:', error.message);
+    console.error('Excel Export Hatası:', error.message);
     res.status(500).json({ success: false, message: 'Dışa aktarma başarısız.' });
   }
 });

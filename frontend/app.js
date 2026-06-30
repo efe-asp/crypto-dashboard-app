@@ -176,7 +176,7 @@ const LANGS = {
     btn_transfer_submit: 'Gönder',
     btn_stake          : 'Varlığı Kilitle (Stake)',
     btn_unstake        : 'Stake Boz & Faizi Al',
-    btn_export_csv     : 'CSV İndir',
+    btn_export_csv     : 'Excel İndir',
     label_receiver_email: 'Alıcı Email',
     label_currency     : 'Varlık',
     staking_title      : 'Staking (Kazan)',
@@ -184,7 +184,26 @@ const LANGS = {
     staking_earned     : 'Biriken Faiz:',
     risk_score_label   : 'Varlık Risk Skoru',
     portfolio_history  : 'Varlık Zaman Grafiği',
-    price_alerts_title : 'Fiyat Alarmları'
+    price_alerts_title : 'Fiyat Alarmları',
+    greeting_morning   : 'Günaydın',
+    greeting_afternoon : 'İyi Günler',
+    greeting_evening   : 'İyi Akşamlar',
+    greeting_night     : 'İyi Geceler',
+    widget_vip         : 'VIP',
+    widget_points      : 'NovaPuan',
+    widget_star        : 'Günün Yıldızı',
+    widget_account_type: 'Hesap Türü',
+    btn_quick_deposit  : 'Hızlı Yatır',
+    btn_wallet_detail  : 'Cüzdan Detay',
+    network_status     : 'Ethereum Gas',
+    btn_settings       : 'Ayarlar',
+    modal_settings     : 'Ayarlar',
+    tab_security       : 'Güvenlik',
+    email_verification_title: 'E-posta Doğrulama',
+    email_verification_desc: 'Hesabınızı daha güvenli hale getirmek ve tam yetkiyle kullanabilmek için e-postanızı doğrulayın.',
+    status_verified    : '✔ Onaylı Hesap',
+    status_unverified  : 'Doğrulanmamış',
+    btn_verify_email   : 'E-postayı Doğrula'
   },
 
   en: {
@@ -315,7 +334,7 @@ const LANGS = {
     btn_transfer_submit: 'Send',
     btn_stake          : 'Lock Asset (Stake)',
     btn_unstake        : 'Unstake & Get Interest',
-    btn_export_csv     : 'Download CSV',
+    btn_export_csv     : 'Download Excel',
     label_receiver_email: 'Receiver Email',
     label_currency     : 'Asset',
     staking_title      : 'Staking (Earn)',
@@ -323,7 +342,26 @@ const LANGS = {
     staking_earned     : 'Earned Interest:',
     risk_score_label   : 'Portfolio Risk Score',
     portfolio_history  : 'Portfolio Time Chart',
-    price_alerts_title : 'Price Alerts'
+    price_alerts_title : 'Price Alerts',
+    greeting_morning   : 'Good Morning',
+    greeting_afternoon : 'Good Afternoon',
+    greeting_evening   : 'Good Evening',
+    greeting_night     : 'Good Night',
+    widget_vip         : 'VIP',
+    widget_points      : 'NovaPoints',
+    widget_star        : 'Top Performer',
+    widget_account_type: 'Account Type',
+    btn_quick_deposit  : 'Quick Deposit',
+    btn_wallet_detail  : 'Wallet Detail',
+    network_status     : 'Ethereum Gas',
+    btn_settings       : 'Settings',
+    modal_settings     : 'Settings',
+    tab_security       : 'Security',
+    email_verification_title: 'Email Verification',
+    email_verification_desc: 'Verify your email to make your account more secure and unlock full access.',
+    status_verified    : '✔ Verified Account',
+    status_unverified  : 'Unverified',
+    btn_verify_email   : 'Verify Email'
   }
 };
 
@@ -458,6 +496,8 @@ const ApiService = (() => {
     login    : (email, password)            => request('/auth/login',    { method: 'POST', body: JSON.stringify({ email, password }) }),
     register : (username, email, password)  => request('/auth/register', { method: 'POST', body: JSON.stringify({ username, email, password }) }),
     me       : ()                           => request('/auth/me'),
+    sendVerificationCode: ()                => request('/auth/send-verification-code', { method: 'POST' }),
+    verifyCode  : (code)                    => request('/auth/verify-code', { method: 'POST', body: JSON.stringify({ code }) }),
 
     // Wallet
     getWallet      : ()                             => request('/wallet'),
@@ -496,6 +536,14 @@ const Auth = (() => {
 
   const updateNavUI = () => {
     const loggedIn = isLoggedIn();
+    
+    // HTML tagına class ekle/çıkar (CLS önleme ve widget görünürlüğü için)
+    if (loggedIn) {
+      document.documentElement.classList.add('is-logged-in');
+    } else {
+      document.documentElement.classList.remove('is-logged-in');
+    }
+
     document.getElementById('authButtons').hidden = loggedIn;
     document.getElementById('userMenu').hidden     = !loggedIn;
 
@@ -508,6 +556,7 @@ const Auth = (() => {
     // Wallet & Trade panellerini güncelle
     TradeModule.onAuthChange();
     WalletModule.onAuthChange();
+    WalletModule.updateHomeWidget();
   };
 
   const tryRestoreSession = async () => {
@@ -1837,6 +1886,118 @@ const WalletModule = (() => {
   let portfolioLineChart = null;
   let activeAlerts = [];
 
+  const updateHomeWidget = async () => {
+    const widget = document.getElementById('homeWelcomeWidget');
+    if (!widget) return;
+    if (!Auth.isLoggedIn()) {
+      widget.style.display = 'none';
+      return;
+    }
+    
+    const hour = new Date().getHours();
+    let greetingKey = 'greeting_morning';
+    if (hour >= 12 && hour < 18) greetingKey = 'greeting_afternoon';
+    else if (hour >= 18 && hour < 22) greetingKey = 'greeting_evening';
+    else if (hour >= 22 || hour < 5) greetingKey = 'greeting_night';
+    
+    document.getElementById('homeWelcomeGreeting').textContent = I18n.t(greetingKey) + ', ';
+    document.getElementById('homeWelcomeName').textContent = Auth.getUser()?.username;
+    
+    const hwTotal = document.getElementById('homeWelcomeTotal');
+    const hwPnl = document.getElementById('homeWelcomePnl');
+    const hwStar = document.getElementById('homeWelcomeStar');
+    
+    if (hwTotal) hwTotal.textContent = 'Hesaplanıyor...';
+    if (hwPnl) hwPnl.textContent = '';
+    widget.style.display = 'flex';
+
+    try {
+      const res = await ApiService.getWallet();
+      const items = res.data || [];
+      const allCoins = MarketsModule.getAllCoins();
+      
+      let total = 0;
+      let totalInvested = 0;
+      
+      items.forEach(w => {
+        let usdVal = 0;
+        if (w.currency === 'USD') usdVal = w.balance;
+        else if (w.currency === 'EUR') usdVal = w.balance * 1.09;
+        else if (w.currency === 'TRY') usdVal = w.balance / GlobalRates.try;
+        else {
+          const coin = allCoins.find(c => c.symbol?.toUpperCase() === w.currency);
+          if (coin) usdVal = w.balance * (coin.current_price || 0);
+        }
+        total += usdVal;
+        
+        if (w.currency !== 'USD' && w.avg_buy_price && w.balance > 0) {
+          totalInvested += (w.balance * w.avg_buy_price);
+        }
+      });
+      
+      widget.dataset.rawTotal = Fmt.price(total, 'usd');
+      
+      let pnlHtmlRaw = '';
+      if (totalInvested > 0) {
+        let netPnl = 0;
+        items.forEach(w => {
+           if (w.currency !== 'USD' && w.avg_buy_price && w.balance > 0) {
+             const coin = allCoins.find(c => c.symbol?.toUpperCase() === w.currency);
+             if (coin) {
+               const currentVal = w.balance * coin.current_price;
+               const investedVal = w.balance * w.avg_buy_price;
+               netPnl += (currentVal - investedVal);
+             }
+           }
+        });
+        const pnlPct = (netPnl / totalInvested) * 100;
+        const sign = netPnl >= 0 ? '+' : '';
+        const colorClass = netPnl >= 0 ? 'color-positive' : 'color-negative';
+        pnlHtmlRaw = `<span class="${colorClass}">${sign}${Fmt.price(netPnl, 'usd')} (${sign}${pnlPct.toFixed(2)}%)</span>`;
+      }
+      widget.dataset.rawPnl = pnlHtmlRaw;
+      
+      applyPrivacyMode();
+      
+      const hwStatus = document.getElementById('homeWelcomeAccountStatus');
+      if (hwStatus) {
+        const user = Auth.getUser();
+        if (user && user.is_verified) {
+          hwStatus.textContent = I18n.t('status_verified') || 'Onaylı';
+          hwStatus.style.color = 'var(--color-positive)';
+        } else {
+          hwStatus.textContent = I18n.t('status_unverified') || 'Doğrulanmamış';
+          hwStatus.style.color = 'var(--color-text-muted)';
+        }
+      }
+    } catch (e) {
+      console.log('Widget error', e);
+    }
+  };
+
+  const applyPrivacyMode = () => {
+    const isHidden = localStorage.getItem('cn_privacy') === 'true';
+    const widget = document.getElementById('homeWelcomeWidget');
+    if (!widget) return;
+    
+    const hwTotal = document.getElementById('homeWelcomeTotal');
+    const hwPnl = document.getElementById('homeWelcomePnl');
+    const iconOpen = document.getElementById('privacyIconOpen');
+    const iconClosed = document.getElementById('privacyIconClosed');
+    
+    if (isHidden) {
+      if (hwTotal) hwTotal.textContent = '••••••';
+      if (hwPnl) hwPnl.innerHTML = '';
+      if (iconOpen) iconOpen.style.display = 'block';
+      if (iconClosed) iconClosed.style.display = 'none';
+    } else {
+      if (hwTotal) hwTotal.textContent = widget.dataset.rawTotal || '$0.00';
+      if (hwPnl) hwPnl.innerHTML = widget.dataset.rawPnl || '';
+      if (iconOpen) iconOpen.style.display = 'none';
+      if (iconClosed) iconClosed.style.display = 'block';
+    }
+  };
+
   const onTabActivate = async () => {
     if (!Auth.isLoggedIn()) return;
     await Promise.all([loadBalances(), loadTransactions(true), loadStaking(), loadPortfolioHistory(1)]);
@@ -2365,6 +2526,25 @@ const WalletModule = (() => {
   };
 
   const initEvents = () => {
+    document.getElementById('togglePrivacyBtn')?.addEventListener('click', () => {
+      const isHidden = localStorage.getItem('cn_privacy') === 'true';
+      localStorage.setItem('cn_privacy', !isHidden);
+      applyPrivacyMode();
+    });
+
+    document.getElementById('homeWalletDetailBtn')?.addEventListener('click', () => {
+      TabRouter.goTo('wallet');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+
+    document.getElementById('homeQuickDepositBtn')?.addEventListener('click', () => {
+      TabRouter.goTo('wallet');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      // "Yatırma" (deposit) tabını seç
+      const depositTabBtn = document.querySelector('.dw-tab-btn[data-target="depositPanel"]');
+      if (depositTabBtn) depositTabBtn.click();
+    });
+    
     document.getElementById('walletLoginBtn')?.addEventListener('click', () => AuthModal.open());
     document.getElementById('depositBtn')?.addEventListener('click', doDeposit);
     document.getElementById('withdrawBtn')?.addEventListener('click', doWithdraw);
@@ -2461,7 +2641,115 @@ const WalletModule = (() => {
 
   const init = () => { initEvents(); };
 
-  return { init, onTabActivate, onAuthChange, removeAlert, checkAlerts };
+  return { init, onTabActivate, onAuthChange, removeAlert, checkAlerts, updateHomeWidget };
+})();
+
+// ============================================================
+// SETTINGS MODAL
+// ============================================================
+const SettingsModule = (() => {
+  let isCodeSent = false;
+
+  const updateUI = () => {
+    const user = Auth.getUser();
+    if (!user) return;
+    
+    const stateVerified = document.getElementById('verifiedState');
+    const step1 = document.getElementById('verifyStep1');
+    const step2 = document.getElementById('verifyStep2');
+    const emailInput = document.getElementById('verifyEmailInput');
+    
+    if (!stateVerified || !step1 || !step2) return;
+    
+    if (user.is_verified) {
+      stateVerified.style.display = 'block';
+      step1.style.display = 'none';
+      step2.style.display = 'none';
+    } else {
+      stateVerified.style.display = 'none';
+      if (emailInput && !isCodeSent) {
+        emailInput.value = user.email; // Pre-fill with user's email
+      }
+      
+      if (isCodeSent) {
+        step1.style.display = 'none';
+        step2.style.display = 'flex';
+      } else {
+        step1.style.display = 'flex';
+        step2.style.display = 'none';
+      }
+    }
+  };
+
+  const sendCode = async () => {
+    const btn = document.getElementById('sendCodeBtn');
+    btn.disabled = true;
+    btn.textContent = I18n.t('loading') || 'Gönderiliyor...';
+    
+    try {
+      const res = await ApiService.sendVerificationCode();
+      if (res.success) {
+        Toast.success(res.message);
+        isCodeSent = true;
+        updateUI();
+      }
+    } catch (err) {
+      Toast.error('Hata', err.message);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Kodu Gönder';
+    }
+  };
+
+  const verifyCode = async () => {
+    const btn = document.getElementById('verifyCodeBtn');
+    const codeInput = document.getElementById('verifyCodeInput');
+    const code = codeInput?.value.trim();
+    
+    if (!code || code.length !== 6) {
+      Toast.error('Hata', 'Lütfen 6 haneli kodu girin.');
+      return;
+    }
+    
+    btn.disabled = true;
+    btn.textContent = I18n.t('loading') || 'Yükleniyor...';
+    
+    try {
+      const res = await ApiService.verifyCode(code);
+      if (res.success) {
+        Toast.success(res.message);
+        
+        // Update user state locally
+        const user = Auth.getUser();
+        if (user) {
+          user.is_verified = 1;
+          const token = Auth.getToken();
+          Auth.setSession(user, token);
+        }
+        
+        isCodeSent = false;
+        updateUI();
+      }
+    } catch (err) {
+      Toast.error('Hata', err.message);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Doğrula';
+    }
+  };
+
+  const init = () => {
+    document.getElementById('settingsBtn')?.addEventListener('click', () => {
+      document.getElementById('userDropdown').hidden = true;
+      TabRouter.goTo('settings');
+      updateUI();
+    });
+    
+    document.getElementById('sendCodeBtn')?.addEventListener('click', sendCode);
+    document.getElementById('verifyCodeBtn')?.addEventListener('click', verifyCode);
+  };
+
+  return { init, updateUI };
 })();
 
 // ============================================================
@@ -2610,6 +2898,7 @@ const AuthModal = (() => {
       Auth.clearSession();
       Toast.info(I18n.t('toast_logout_ok'));
       document.getElementById('userDropdown').hidden = true;
+      TabRouter.goTo('home');
     });
 
     // User menu toggle
@@ -2690,9 +2979,9 @@ const HistoryModule = (() => {
 
     document.getElementById('csvExportBtn')?.addEventListener('click', async () => {
       try {
-        Toast.info('Hazırlanıyor', 'CSV dosyası indiriliyor...');
+        Toast.info('Hazırlanıyor', 'Excel tablosu oluşturuluyor...');
         const token = localStorage.getItem('cn_token');
-        const res = await fetch('/api/wallet/export-csv', {
+        const res = await fetch('/api/wallet/export-excel', {
           headers: { 'Authorization': token ? `Bearer ${token}` : '' }
         });
         if (!res.ok) throw new Error('İndirme başarısız oldu.');
@@ -2700,7 +2989,7 @@ const HistoryModule = (() => {
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = 'islemler.csv';
+        a.download = 'CryptoNova_Islemler.xlsx';
         a.click();
         window.URL.revokeObjectURL(url);
       } catch (err) {
@@ -2870,6 +3159,7 @@ const App = {
 
     // 4. Auth modal & kontroller
     AuthModal.initEvents();
+    SettingsModule.init();
 
     // 5. Tema & dil kontrolleri
     initControls();

@@ -30,6 +30,9 @@ db.exec(`
     email      TEXT    UNIQUE NOT NULL,
     password   TEXT    NOT NULL,
     watchlist  TEXT    NOT NULL DEFAULT '[]',
+    is_verified INTEGER NOT NULL DEFAULT 0,
+    verification_code TEXT,
+    verification_expires TEXT,
     is_active  INTEGER NOT NULL DEFAULT 1,
     created_at TEXT    NOT NULL DEFAULT (datetime('now')),
     updated_at TEXT    NOT NULL DEFAULT (datetime('now'))
