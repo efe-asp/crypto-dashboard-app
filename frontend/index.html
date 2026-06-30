@@ -31,6 +31,11 @@
       if (localStorage.getItem('cn_token')) {
         document.documentElement.classList.add('is-logged-in');
       }
+
+      // Sayfa yenilemelerinde tarayıcının otomatik aşağı kaydırmasını engelle
+      if ('scrollRestoration' in history) {
+        history.scrollRestoration = 'manual';
+      }
     })();
   </script>
   <style>

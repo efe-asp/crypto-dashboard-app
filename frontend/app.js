@@ -496,7 +496,7 @@ const ApiService = (() => {
     login    : (email, password)            => request('/auth/login',    { method: 'POST', body: JSON.stringify({ email, password }) }),
     register : (username, email, password)  => request('/auth/register', { method: 'POST', body: JSON.stringify({ username, email, password }) }),
     me       : ()                           => request('/auth/me'),
-    sendVerificationCode: ()                => request('/auth/send-verification-code', { method: 'POST' }),
+    sendVerificationCode: (email)           => request('/auth/send-verification-code', { method: 'POST', body: JSON.stringify({ email }) }),
     verifyCode  : (code)                    => request('/auth/verify-code', { method: 'POST', body: JSON.stringify({ code }) }),
 
     // Wallet
@@ -2683,11 +2683,19 @@ const SettingsModule = (() => {
 
   const sendCode = async () => {
     const btn = document.getElementById('sendCodeBtn');
+    const emailInput = document.getElementById('verifyEmailInput');
+    const email = emailInput?.value.trim();
+    
+    if (!email) {
+      Toast.error('Hata', 'Lütfen e-posta adresinizi girin.');
+      return;
+    }
+    
     btn.disabled = true;
     btn.textContent = I18n.t('loading') || 'Gönderiliyor...';
     
     try {
-      const res = await ApiService.sendVerificationCode();
+      const res = await ApiService.sendVerificationCode(email);
       if (res.success) {
         Toast.success(res.message);
         isCodeSent = true;

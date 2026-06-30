@@ -158,8 +158,27 @@ const getWatchlist = (userId) => {
 
 /**
  * E-posta için 6 haneli doğrulama kodu oluşturur ve kaydeder.
+ * Gerekirse kullanıcının e-postasını da günceller.
  */
-const sendVerificationCode = (userId) => {
+const sendVerificationCode = (userId, newEmail = null) => {
+  // Eğer yeni bir e-posta girilmişse kontrol et
+  if (newEmail) {
+    newEmail = newEmail.toLowerCase().trim();
+    const existing = db.prepare('SELECT id, is_verified FROM users WHERE email = ?').get(newEmail);
+    
+    // Eğer email başka bir kullanıcıya aitse (kendi id'si değilse)
+    if (existing && existing.id !== userId) {
+      if (existing.is_verified) {
+        throw new Error('Bu e-posta adresi başka bir kullanıcı tarafından zaten doğrulanmış.');
+      } else {
+        throw new Error('Bu e-posta adresi zaten kullanımda.');
+      }
+    }
+    
+    // Geçerliyse kullanıcının mailini güncelle ve is_verified = 0 yap (eğer değiştiyse)
+    db.prepare('UPDATE users SET email = ?, is_verified = 0 WHERE id = ?').run(newEmail, userId);
+  }
+
   const code = Math.floor(100000 + Math.random() * 900000).toString();
   // 15 dakika geçerli (şu anki saate 15 dk ekle)
   const expires = new Date(Date.now() + 15 * 60000).toISOString();
