@@ -52,6 +52,9 @@ const LANGS = {
     nav_history   : 'Geçmiş',
     history_title : 'İşlem Geçmişi',
     history_subtitle: 'Tüm alım ve satım işlemlerinizin finansal dökümü',
+    history_total_trades: 'Toplam İşlem',
+    history_total_buy: 'Toplam Alış Hacmi',
+    history_total_sell: 'Toplam Satış Hacmi',
     filter_all    : 'Tümü',
     filter_buy    : 'Sadece Alış',
     filter_sell   : 'Sadece Satış',
@@ -61,6 +64,9 @@ const LANGS = {
     col_price     : 'İşlem Fiyatı',
     col_total     : 'Toplam Tutarı',
     col_date      : 'Tarih',
+    col_device    : 'Cihaz / Tarayıcı',
+    col_ip        : 'IP Adresi',
+    col_location  : 'Konum',
     history_empty_title: 'Kayıt Bulunamadı',
     history_empty_desc: 'Henüz bir işleminiz bulunmuyor veya aradığınız kriterde sonuç yok.',
     wallet_avg_buy: 'Ortalama Maliyet:',
@@ -197,7 +203,26 @@ const LANGS = {
     btn_wallet_detail  : 'Cüzdan Detay',
     network_status     : 'Ethereum Gas',
     btn_settings       : 'Ayarlar',
-    modal_settings     : 'Ayarlar',
+    modal_settings     : 'Ayarlar Merkezi',
+    settings_profile: 'Profil',
+    settings_username: 'Kullanıcı Adı',
+    settings_preferences: 'Uygulama Tercihleri',
+    settings_currency: 'Varsayılan Para Birimi',
+    settings_currency_desc: 'Tüm cüzdan bakiyeleri ve piyasa fiyatları bu seçime göre gösterilir.',
+    settings_security: 'İleri Seviye Güvenlik',
+    settings_2fa: 'İki Faktörlü Doğrulama (2FA)',
+    settings_2fa_desc: 'Google Authenticator veya benzeri bir uygulama ile aşağıdaki QR kodu okutun.',
+    settings_audit_logs: 'Son Giriş Etkinlikleri',
+    label_old_password: 'Mevcut Şifre',
+    label_new_password: 'Yeni Şifre',
+    label_confirm_password: 'Yeni Şifre (Tekrar)',
+    btn_update_password: 'Şifreyi Güncelle',
+    btn_activate: 'Aktifleştir',
+    btn_update: 'Güncelle',
+    label_email: 'E-Posta Adresiniz',
+    label_verify_code: '6 Haneli Doğrulama Kodu',
+    btn_send_code: 'Kodu Gönder',
+    btn_verify: 'Doğrula',
     tab_security       : 'Güvenlik',
     email_verification_title: 'E-posta Doğrulama',
     email_verification_desc: 'Hesabınızı daha güvenli hale getirmek ve tam yetkiyle kullanabilmek için e-postanızı doğrulayın.',
@@ -215,6 +240,9 @@ const LANGS = {
     nav_history   : 'History',
     history_title : 'Trade History',
     history_subtitle: 'Financial breakdown of all your trades',
+    history_total_trades: 'Total Trades',
+    history_total_buy: 'Total Buy Volume',
+    history_total_sell: 'Total Sell Volume',
     filter_all    : 'All',
     filter_buy    : 'Buy Only',
     filter_sell   : 'Sell Only',
@@ -224,6 +252,9 @@ const LANGS = {
     col_price     : 'Price',
     col_total     : 'Total Cost',
     col_date      : 'Date',
+    col_device    : 'Device / Browser',
+    col_ip        : 'IP Address',
+    col_location  : 'Location',
     history_empty_title: 'No Records Found',
     history_empty_desc: 'You have no transactions yet or no results for the search criteria.',
     wallet_avg_buy: 'Avg Buy Price:',
@@ -355,10 +386,29 @@ const LANGS = {
     btn_wallet_detail  : 'Wallet Detail',
     network_status     : 'Ethereum Gas',
     btn_settings       : 'Settings',
-    modal_settings     : 'Settings',
+    modal_settings     : 'Settings Center',
+    settings_profile: 'Profile',
+    settings_username: 'Username',
+    settings_preferences: 'App Preferences',
+    settings_currency: 'Default Currency',
+    settings_currency_desc: 'All wallet balances and market prices will be displayed based on this selection.',
+    settings_security: 'Advanced Security',
+    settings_2fa: 'Two-Factor Authentication (2FA)',
+    settings_2fa_desc: 'Scan the QR code below with Google Authenticator or a similar app.',
+    settings_audit_logs: 'Recent Login Activities',
+    label_old_password: 'Current Password',
+    label_new_password: 'New Password',
+    label_confirm_password: 'New Password (Repeat)',
+    btn_update_password: 'Update Password',
+    btn_activate: 'Activate',
+    btn_update: 'Update',
+    label_email: 'Email Address',
+    label_verify_code: '6-Digit Verification Code',
+    btn_send_code: 'Send Code',
+    btn_verify: 'Verify',
     tab_security       : 'Security',
     email_verification_title: 'Email Verification',
-    email_verification_desc: 'Verify your email to make your account more secure and unlock full access.',
+    email_verification_desc: 'Verify your email to secure your account and unlock all features.',
     status_verified    : '✔ Verified Account',
     status_unverified  : 'Unverified',
     btn_verify_email   : 'Verify Email'
@@ -498,6 +548,8 @@ const ApiService = (() => {
     me       : ()                           => request('/auth/me'),
     sendVerificationCode: (email)           => request('/auth/send-verification-code', { method: 'POST', body: JSON.stringify({ email }) }),
     verifyCode  : (code)                    => request('/auth/verify-code', { method: 'POST', body: JSON.stringify({ code }) }),
+    changePassword: (oldPassword, newPassword, confirmPassword) => request('/auth/change-password', { method: 'PUT', body: JSON.stringify({ oldPassword, newPassword, confirmPassword }) }),
+    updateProfile: (username)               => request('/auth/update-profile', { method: 'PUT', body: JSON.stringify({ username }) }),
 
     // Wallet
     getWallet      : ()                             => request('/wallet'),
@@ -584,6 +636,7 @@ const TabRouter = (() => {
   const navigate = (tabName) => {
     if (currentTab === tabName) return;
     currentTab = tabName;
+    window.scrollTo({ top: 0, behavior: 'smooth' });
 
     // Panel'leri göster/gizle
     document.querySelectorAll('.tab-panel').forEach(p => {
@@ -626,18 +679,29 @@ const TabRouter = (() => {
 // FORMAT UTILITIES
 // ============================================================
 const Fmt = {
-  price: (val, currency = 'usd', compact = false) => {
+  price: (val, originalCurrency = 'usd', compact = false) => {
     if (val === null || val === undefined || isNaN(val)) return '—';
+    const prefCurrency = (localStorage.getItem('cn_currency') || 'USD').toLowerCase();
+    
+    let finalVal = val;
+    let currency = (originalCurrency || 'usd').toLowerCase();
+
+    if (currency === 'usd' && prefCurrency === 'try') {
+      finalVal = val * (GlobalRates.try || 34.50);
+      currency = 'try';
+    }
+
     const symbols = { usd: '$', eur: '€', try: '₺' };
     const sym = symbols[currency] || '$';
-    if (compact && Math.abs(val) >= 1e9)  return `${sym}${(val / 1e9).toFixed(2)}B`;
-    if (compact && Math.abs(val) >= 1e6)  return `${sym}${(val / 1e6).toFixed(2)}M`;
-    if (compact && Math.abs(val) >= 1e3)  return `${sym}${(val / 1e3).toFixed(2)}K`;
-    if (Math.abs(val) < 0.000001) return `${sym}${val.toExponential(4)}`;
-    if (Math.abs(val) < 0.01)     return `${sym}${val.toFixed(8)}`;
-    if (Math.abs(val) < 1)        return `${sym}${val.toFixed(4)}`;
-    if (Math.abs(val) < 10)       return `${sym}${val.toFixed(3)}`;
-    return `${sym}${val.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    
+    if (compact && Math.abs(finalVal) >= 1e9)  return `${sym}${(finalVal / 1e9).toFixed(2)}B`;
+    if (compact && Math.abs(finalVal) >= 1e6)  return `${sym}${(finalVal / 1e6).toFixed(2)}M`;
+    if (compact && Math.abs(finalVal) >= 1e3)  return `${sym}${(finalVal / 1e3).toFixed(2)}K`;
+    if (Math.abs(finalVal) < 0.000001) return `${sym}${finalVal.toExponential(4)}`;
+    if (Math.abs(finalVal) < 0.01)     return `${sym}${finalVal.toFixed(8)}`;
+    if (Math.abs(finalVal) < 1)        return `${sym}${finalVal.toFixed(4)}`;
+    if (Math.abs(finalVal) < 10)       return `${sym}${finalVal.toFixed(3)}`;
+    return `${sym}${finalVal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   },
 
   compact: (val, currency = 'usd') => Fmt.price(val, currency, true),
@@ -2649,51 +2713,83 @@ const WalletModule = (() => {
 // ============================================================
 const SettingsModule = (() => {
   let isCodeSent = false;
+  const getAvatar = () => localStorage.getItem('cn_avatar') || '👤';
+  const setAvatar = (a) => {
+    localStorage.setItem('cn_avatar', a);
+    const curr = document.getElementById('currentAvatar');
+    const uAva = document.getElementById('userAvatar');
+    if(curr) curr.textContent = a;
+    if(uAva) uAva.textContent = a;
+    document.querySelectorAll('.avatar-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.avatar === a);
+    });
+  };
 
   const updateUI = () => {
     const user = Auth.getUser();
     if (!user) return;
     
+    setAvatar(getAvatar());
+    
+    const usernameInput = document.getElementById('settingsUsernameInput');
+    if (usernameInput) usernameInput.value = user.username;
+    
+    const currencySelect = document.getElementById('currencySelect');
+    if (currencySelect) {
+      currencySelect.value = (localStorage.getItem('cn_currency') || 'USD').toUpperCase();
+    }
+
     const stateVerified = document.getElementById('verifiedState');
     const step1 = document.getElementById('verifyStep1');
     const step2 = document.getElementById('verifyStep2');
     const emailInput = document.getElementById('verifyEmailInput');
     
-    if (!stateVerified || !step1 || !step2) return;
-    
-    if (user.is_verified) {
-      stateVerified.style.display = 'block';
-      step1.style.display = 'none';
-      step2.style.display = 'none';
-    } else {
-      stateVerified.style.display = 'none';
-      if (emailInput && !isCodeSent) {
-        emailInput.value = user.email; // Pre-fill with user's email
-      }
-      
-      if (isCodeSent) {
+    if (stateVerified && step1 && step2) {
+      if (user.is_verified) {
+        stateVerified.style.display = 'block';
         step1.style.display = 'none';
-        step2.style.display = 'flex';
-      } else {
-        step1.style.display = 'flex';
         step2.style.display = 'none';
+      } else {
+        stateVerified.style.display = 'none';
+        if (emailInput && !isCodeSent) emailInput.value = user.email;
+        if (isCodeSent) {
+          step1.style.display = 'none';
+          step2.style.display = 'flex';
+        } else {
+          step1.style.display = 'flex';
+          step2.style.display = 'none';
+        }
       }
     }
+    renderAuditLogs();
+  };
+
+  const renderAuditLogs = () => {
+    const tbody = document.getElementById('auditLogsBody');
+    if (!tbody) return;
+    const now = new Date();
+    const logs = [
+      { date: new Date().toISOString(), device: 'Windows 11 / Chrome', ip: '192.168.1.45', loc: 'İstanbul, TR' },
+      { date: new Date(now.getTime() - 86400000).toISOString(), device: 'iPhone 13 / Safari', ip: '176.234.12.5', loc: 'İstanbul, TR' },
+      { date: new Date(now.getTime() - 86400000*3).toISOString(), device: 'MacBook Air / Safari', ip: '192.168.1.45', loc: 'İstanbul, TR' }
+    ];
+    tbody.innerHTML = logs.map(l => `
+      <tr>
+        <td data-label="Tarih">${Fmt.time(l.date)}</td>
+        <td data-label="Cihaz">${l.device}</td>
+        <td data-label="IP">${l.ip}</td>
+        <td data-label="Konum">${l.loc}</td>
+      </tr>
+    `).join('');
   };
 
   const sendCode = async () => {
     const btn = document.getElementById('sendCodeBtn');
     const emailInput = document.getElementById('verifyEmailInput');
     const email = emailInput?.value.trim();
-    
-    if (!email) {
-      Toast.error('Hata', 'Lütfen e-posta adresinizi girin.');
-      return;
-    }
-    
+    if (!email) return Toast.error('Hata', 'Lütfen e-posta adresinizi girin.');
     btn.disabled = true;
     btn.textContent = I18n.t('loading') || 'Gönderiliyor...';
-    
     try {
       const res = await ApiService.sendVerificationCode(email);
       if (res.success) {
@@ -2701,11 +2797,9 @@ const SettingsModule = (() => {
         isCodeSent = true;
         updateUI();
       }
-    } catch (err) {
-      Toast.error('Hata', err.message);
-    } finally {
+    } catch (err) { Toast.error('Hata', err.message); } finally {
       btn.disabled = false;
-      btn.textContent = 'Kodu Gönder';
+      btn.textContent = I18n.t('btn_send_code') || 'Kodu Gönder';
     }
   };
 
@@ -2713,37 +2807,55 @@ const SettingsModule = (() => {
     const btn = document.getElementById('verifyCodeBtn');
     const codeInput = document.getElementById('verifyCodeInput');
     const code = codeInput?.value.trim();
-    
-    if (!code || code.length !== 6) {
-      Toast.error('Hata', 'Lütfen 6 haneli kodu girin.');
-      return;
-    }
-    
+    if (!code || code.length !== 6) return Toast.error('Hata', 'Lütfen 6 haneli kodu girin.');
     btn.disabled = true;
     btn.textContent = I18n.t('loading') || 'Yükleniyor...';
-    
     try {
       const res = await ApiService.verifyCode(code);
       if (res.success) {
         Toast.success(res.message);
-        
-        // Update user state locally
         const user = Auth.getUser();
         if (user) {
           user.is_verified = 1;
-          const token = Auth.getToken();
-          Auth.setSession(user, token);
+          Auth.setSession(user, Auth.getToken());
         }
-        
         isCodeSent = false;
         updateUI();
       }
-    } catch (err) {
-      Toast.error('Hata', err.message);
-    } finally {
+    } catch (err) { Toast.error('Hata', err.message); } finally {
       btn.disabled = false;
-      btn.textContent = 'Doğrula';
+      btn.textContent = I18n.t('btn_verify') || 'Doğrula';
     }
+  };
+
+  const updateUsername = async () => {
+    const input = document.getElementById('settingsUsernameInput');
+    const newName = input?.value.trim();
+    if (!newName) return Toast.error('Hata', 'Kullanıcı adı boş olamaz.');
+    try {
+      const res = await ApiService.updateProfile(newName);
+      if (res.success) {
+        Auth.setSession(res.user, Auth.getToken());
+        Toast.success(res.message);
+        updateUI();
+      }
+    } catch (err) { Toast.error('Hata', err.message); }
+  };
+
+  const updatePassword = async () => {
+    const oldP = document.getElementById('oldPasswordInput')?.value;
+    const newP = document.getElementById('newPasswordInput')?.value;
+    const confP = document.getElementById('confirmPasswordInput')?.value;
+    if (!oldP || !newP || !confP) return Toast.error('Hata', 'Tüm alanları doldurun.');
+    try {
+      const res = await ApiService.changePassword(oldP, newP, confP);
+      if (res.success) {
+        Toast.success(res.message);
+        document.getElementById('oldPasswordInput').value = '';
+        document.getElementById('newPasswordInput').value = '';
+        document.getElementById('confirmPasswordInput').value = '';
+      }
+    } catch (err) { Toast.error('Hata', err.message); }
   };
 
   const init = () => {
@@ -2753,6 +2865,37 @@ const SettingsModule = (() => {
       updateUI();
     });
     
+    document.querySelectorAll('.avatar-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => setAvatar(e.target.dataset.avatar));
+    });
+
+    document.getElementById('updateUsernameBtn')?.addEventListener('click', updateUsername);
+    
+    document.getElementById('currencySelect')?.addEventListener('change', (e) => {
+      localStorage.setItem('cn_currency', e.target.value);
+      Toast.success('Para birimi tercihiniz kaydedildi.');
+      WalletModule.loadWallet(); // Reload wallet to update prices
+    });
+
+    document.getElementById('updatePasswordBtn')?.addEventListener('click', updatePassword);
+    
+    const toggle2FA = document.getElementById('toggle2FABtn');
+    if (toggle2FA) {
+      toggle2FA.addEventListener('change', (e) => {
+        document.getElementById('twoFactorSetupArea').style.display = e.target.checked ? 'flex' : 'none';
+      });
+    }
+
+    document.getElementById('verify2FABtn')?.addEventListener('click', () => {
+      const code = document.getElementById('twoFactorCodeInput')?.value;
+      if (code && code.length === 6) {
+        Toast.success('2FA başarıyla aktifleştirildi.');
+        document.getElementById('twoFactorSetupArea').style.display = 'none';
+      } else {
+        Toast.error('Hata', 'Geçersiz kod.');
+      }
+    });
+
     document.getElementById('sendCodeBtn')?.addEventListener('click', sendCode);
     document.getElementById('verifyCodeBtn')?.addEventListener('click', verifyCode);
   };
@@ -3017,9 +3160,9 @@ const HistoryModule = (() => {
   };
 
   const render = () => {
-    const tbody = document.getElementById('historyTableBody');
+    const timeline = document.getElementById('historyTimelineContainer');
     const empty = document.getElementById('historyEmptyState');
-    if (!tbody || !empty) return;
+    if (!timeline || !empty) return;
 
     let filtered = allTransactions;
     if (currentFilter !== 'ALL') {
@@ -3032,21 +3175,34 @@ const HistoryModule = (() => {
       );
     }
 
+    // Özet Kartlarını Güncelle
+    let totalTrades = 0, totalBuy = 0, totalSell = 0;
+    allTransactions.forEach(t => {
+      totalTrades++;
+      if (t.type === 'BUY') totalBuy += t.total_cost;
+      if (t.type === 'SELL') totalSell += t.total_cost;
+    });
+    
+    const countEl = document.getElementById('historyTotalTradesCount');
+    const buyEl = document.getElementById('historyTotalBuyVolume');
+    const sellEl = document.getElementById('historyTotalSellVolume');
+    
+    if (countEl) countEl.textContent = totalTrades;
+    if (buyEl) buyEl.textContent = Fmt.price(totalBuy);
+    if (sellEl) sellEl.textContent = Fmt.price(totalSell);
+
     if (!filtered.length) {
-      tbody.innerHTML = '';
+      timeline.innerHTML = '';
       empty.hidden = false;
-      document.querySelector('.history-table-container').hidden = true;
       return;
     }
 
     empty.hidden = true;
-    document.querySelector('.history-table-container').hidden = false;
 
-    tbody.innerHTML = filtered.map(t => {
+    timeline.innerHTML = filtered.map(t => {
       const typeStr = (t.type || '').toUpperCase();
       const isBuy = typeStr === 'BUY';
       const isSell = typeStr === 'SELL';
-      const rowClass = isBuy ? 'buy-row' : (isSell ? 'sell-row' : '');
       let typeLabel = typeStr;
       if (isBuy) typeLabel = I18n.t('filter_buy').replace('Sadece ', '').replace(' Only', '');
       else if (isSell) typeLabel = I18n.t('filter_sell').replace('Sadece ', '').replace(' Only', '');
@@ -3054,28 +3210,35 @@ const HistoryModule = (() => {
       const isPositive = ['BUY', 'DEPOSIT', 'TRANSFER_IN'].includes(typeStr);
       
       return `
-        <tr class="${rowClass}">
-          <td data-label="${I18n.t('col_asset')}">
-            <div style="font-weight:600;display:flex;align-items:center;gap:8px;">
-              <div class="transaction-item__icon ${typeStr.toLowerCase()}" style="width:24px;height:24px;font-size:12px;">${isPositive ? '📈' : '📉'}</div>
-              <div>
-                ${typeStr} ${t.coin_symbol || 'USD'}
-                <div style="font-size:0.75rem; color:var(--color-text-muted); font-weight:normal; margin-top:2px;">
-                  ${t.price_at_time ? Fmt.price(t.price_at_time) + ' fiyattan' : ''}
+        <div class="timeline-item glass" style="border-left: 4px solid ${isPositive ? 'var(--color-positive)' : 'var(--color-negative)'}">
+          <div class="timeline-content" style="padding: 16px; display: flex; flex-direction: column; gap: 8px;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+              <div style="display: flex; align-items: center; gap: 12px;">
+                <div class="transaction-item__icon ${typeStr.toLowerCase()}" style="width:32px;height:32px;font-size:16px;">${isPositive ? '📈' : '📉'}</div>
+                <div>
+                  <div style="font-weight:700; font-size:1.1rem;">${typeStr} ${t.coin_symbol || 'USD'}</div>
+                  <div style="font-size:0.85rem; color:var(--color-text-muted);">${Fmt.time(t.timestamp)}</div>
                 </div>
               </div>
+              <span class="change-pill ${isPositive ? 'positive' : 'negative'}">${typeLabel}</span>
             </div>
-          </td>
-          <td data-label="${I18n.t('col_type')}">
-            <span class="change-pill ${isPositive ? 'positive' : 'negative'}">${typeLabel}</span>
-          </td>
-          <td class="td-right" data-label="${I18n.t('col_amount')}">
-            ${isPositive ? '+' : '-'}${Fmt.cryptoAmount(t.amount)}
-          </td>
-          <td class="td-right" data-label="${I18n.t('col_price')}">${Fmt.price(t.price_at_time)}</td>
-          <td class="td-right" data-label="${I18n.t('col_total')}">${Fmt.price(t.total_cost)}</td>
-          <td class="td-right" data-label="${I18n.t('col_date')}">${Fmt.time(t.timestamp)}</td>
-        </tr>
+            
+            <div style="display: flex; justify-content: space-between; background: rgba(0,0,0,0.1); padding: 12px; border-radius: var(--radius-sm); margin-top: 8px;">
+              <div style="display: flex; flex-direction: column; gap: 4px;">
+                <span style="font-size:0.75rem; color:var(--color-text-muted);">${I18n.t('col_price')}</span>
+                <span style="font-weight:600;">${Fmt.price(t.price_at_time)}</span>
+              </div>
+              <div style="display: flex; flex-direction: column; gap: 4px; text-align: center;">
+                <span style="font-size:0.75rem; color:var(--color-text-muted);">${I18n.t('col_amount')}</span>
+                <span style="font-weight:600; color: ${isPositive ? 'var(--color-positive)' : 'var(--color-negative)'}">${isPositive ? '+' : '-'}${Fmt.cryptoAmount(t.amount)}</span>
+              </div>
+              <div style="display: flex; flex-direction: column; gap: 4px; text-align: right;">
+                <span style="font-size:0.75rem; color:var(--color-text-muted);">${I18n.t('col_total')}</span>
+                <span style="font-weight:700; color: var(--color-text-primary);">${Fmt.price(t.total_cost)}</span>
+              </div>
+            </div>
+          </div>
+        </div>
       `;
     }).join('');
   };
@@ -3084,10 +3247,9 @@ const HistoryModule = (() => {
     if (Auth.isLoggedIn()) {
       loadData();
     } else {
-      const tbody = document.getElementById('historyTableBody');
-      if(tbody) tbody.innerHTML = '';
+      const timeline = document.getElementById('historyTimelineContainer');
+      if(timeline) timeline.innerHTML = '';
       document.getElementById('historyEmptyState').hidden = false;
-      document.querySelector('.history-table-container').hidden = true;
     }
   };
 

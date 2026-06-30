@@ -47,6 +47,50 @@
     html.is-logged-in #homeWelcomeWidget {
       display: flex !important;
     }
+    #homeWelcomeWidget {
+      position: relative;
+      overflow: hidden;
+      background:
+        radial-gradient(ellipse at 0% 100%, rgba(0,212,160,0.18) 0%, transparent 55%),
+        radial-gradient(ellipse at 100% 0%, rgba(0,255,136,0.12) 0%, transparent 55%),
+        linear-gradient(135deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 100%) !important;
+    }
+    #homeWelcomeWidget::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-image:
+        radial-gradient(circle at 20% 80%, rgba(0,212,160,0.08) 0%, transparent 40%),
+        radial-gradient(circle at 80% 20%, rgba(0,255,136,0.06) 0%, transparent 40%);
+      pointer-events: none;
+      z-index: 0;
+    }
+    #homeWelcomeWidget::after {
+      content: '◈';
+      position: absolute;
+      top: 16px;
+      right: 20px;
+      font-size: 5rem;
+      color: rgba(0,212,160,0.07);
+      pointer-events: none;
+      z-index: 0;
+      line-height: 1;
+      font-weight: 700;
+      user-select: none;
+    }
+    #homeWelcomeWidget > * {
+      position: relative;
+      z-index: 1;
+    }
+    #homeWelcomeTotal {
+      color: var(--color-text-primary) !important;
+      font-size: 2rem !important;
+      font-weight: 800 !important;
+      background: var(--gradient-hero);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
   </style>
 </head>
 <body>
@@ -189,7 +233,7 @@
           <div class="hero__text">
             
             <!-- Akıllı Portföy Widget'ı (Giriş yapılmışsa görünür) -->
-            <div id="homeWelcomeWidget" class="glass" style="display: none; padding: 20px; border-radius: var(--radius-xl); margin-bottom: 24px; border: 1px solid var(--border-color); flex-direction: column; gap: 16px; text-align: left;">
+            <div id="homeWelcomeWidget" class="glass" style="display: none; padding: 24px; border-radius: var(--radius-xl); margin-bottom: 24px; border: 1px solid rgba(0,212,160,0.15); flex-direction: column; gap: 16px; text-align: left;">
               <!-- Satır 1: Karşılama & Seviye -->
               <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 12px;">
                 <div>
@@ -198,7 +242,7 @@
                     <span class="gradient-text" id="homeWelcomeName"></span>!
                   </h3>
                   <div style="display: flex; align-items: center; gap: 8px; font-size: 0.85rem; margin-top: 6px;">
-                    <span style="color: var(--color-text-muted); border-bottom: 1px dashed var(--border-color);" data-i18n="widget_points">NovaPuan</span>: <strong style="color: var(--color-text);">1,420</strong>
+                    <span style="color: var(--color-text-muted); border-bottom: 1px dashed rgba(0,212,160,0.3);" data-i18n="widget_points">NovaPuan</span>: <strong style="color: var(--color-brand);">1,420</strong>
                   </div>
                 </div>
               </div>
@@ -206,7 +250,7 @@
               <!-- Satır 2: Bakiye & Gizlilik -->
               <div style="display: flex; align-items: center; gap: 12px;">
                 <div style="flex: 1;">
-                  <div style="font-size: 0.9rem; color: var(--color-text-muted); margin-bottom: 4px; display: flex; align-items: center; gap: 8px;">
+                  <div style="font-size: 0.9rem; color: var(--color-text-muted); margin-bottom: 6px; display: flex; align-items: center; gap: 8px;">
                     <span data-i18n="total_portfolio">Toplam Varlık Değeri</span>
                     <button id="togglePrivacyBtn" class="btn btn--ghost" style="padding: 2px 4px; height: auto;" aria-label="Gizlilik Modu">
                       <svg id="privacyIconOpen" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display: none;"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
@@ -214,22 +258,16 @@
                     </button>
                   </div>
                   <div style="display: flex; align-items: baseline; gap: 12px;">
-                    <strong id="homeWelcomeTotal" class="privacy-text" style="color: white; font-size: 1.75rem; letter-spacing: -0.5px;">$0.00</strong>
+                    <strong id="homeWelcomeTotal" class="privacy-text" style="font-size: 2rem; letter-spacing: -1px; line-height: 1;">$0.00</strong>
                     <span id="homeWelcomePnl" class="privacy-text" style="font-size: 0.9rem; font-weight: 500;"></span>
                   </div>
                 </div>
               </div>
 
-              <!-- Satır 3: Hesap Durumu & Hızlı Eylemler -->
-              <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-top: 8px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 16px;">
-                <div style="font-size: 0.85rem; display: flex; align-items: center; gap: 6px;">
-                  <span style="color: var(--color-text-muted);" data-i18n="widget_account_type">Hesap Türü</span>: 
-                  <strong id="homeWelcomeAccountStatus" style="padding: 2px 6px; border-radius: 4px; background: rgba(255,255,255,0.05);">--</strong>
-                </div>
-                <div style="display: flex; gap: 8px;">
-                  <button class="btn btn--outline" id="homeQuickDepositBtn" style="padding: 6px 12px; font-size: 0.85rem; border-color: rgba(255,255,255,0.2); background: rgba(255,255,255,0.05);" data-i18n="btn_quick_deposit">Hızlı Yatır</button>
-                  <button class="btn btn--primary" id="homeWalletDetailBtn" style="padding: 6px 12px; font-size: 0.85rem;" data-i18n="btn_wallet_detail">Cüzdan Detay</button>
-                </div>
+              <!-- Satır 3: Hesap Durumu -->
+              <div style="display: flex; align-items: center; gap: 6px; margin-top: 4px; border-top: 1px solid rgba(0,212,160,0.1); padding-top: 14px; font-size: 0.85rem;">
+                <span style="color: var(--color-text-muted);" data-i18n="widget_account_type">Hesap Türü</span>:
+                <strong id="homeWelcomeAccountStatus" style="padding: 2px 8px; border-radius: 20px; background: rgba(0,212,160,0.08); border: 1px solid rgba(0,212,160,0.15);">--</strong>
               </div>
             </div>
 
@@ -856,6 +894,22 @@
           <p class="tab-page-subtitle" data-i18n="history_subtitle">Tüm alım ve satım işlemlerinizin finansal dökümü</p>
         </div>
 
+        <!-- YENİ: Özet Kartlar -->
+        <div class="history-summary-grid">
+          <div class="history-summary-card glass">
+            <div class="summary-label" data-i18n="history_total_trades">Toplam İşlem</div>
+            <div class="summary-value" id="historyTotalTradesCount">0</div>
+          </div>
+          <div class="history-summary-card glass">
+            <div class="summary-label" data-i18n="history_total_buy">Toplam Alış Hacmi</div>
+            <div class="summary-value positive" id="historyTotalBuyVolume">$0.00</div>
+          </div>
+          <div class="history-summary-card glass">
+            <div class="summary-label" data-i18n="history_total_sell">Toplam Satış Hacmi</div>
+            <div class="summary-value negative" id="historyTotalSellVolume">$0.00</div>
+          </div>
+        </div>
+
         <div class="history-controls glass">
           <div class="history-filters" role="group">
             <button class="filter-btn active" data-filter="ALL" data-i18n="filter_all">Tümü</button>
@@ -867,28 +921,15 @@
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
               <input type="text" id="historySearchInput" class="search-input" placeholder="Coin ara (örn: BTC)" aria-label="Geçmişte coin ara" />
             </div>
-            <button class="btn btn--primary" id="csvExportBtn" data-i18n="btn_export_csv" style="white-space:nowrap; padding: 0 16px; border-radius:var(--radius-sm); font-weight:600;">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Excel İndir
+            <button class="btn btn--primary" id="csvExportBtn" style="white-space:nowrap; padding: 0 16px; border-radius:var(--radius-sm); font-weight:600;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg><span data-i18n="btn_export_csv">Excel İndir</span>
             </button>
           </div>
         </div>
 
-        <div class="history-table-container glass">
-          <table class="market-table" aria-label="İşlem geçmişi tablosu">
-            <thead>
-              <tr>
-                <th data-i18n="col_asset">Varlık</th>
-                <th data-i18n="col_type">Tip</th>
-                <th class="td-right" data-i18n="col_amount">Miktar</th>
-                <th class="td-right" data-i18n="col_price">İşlem Fiyatı</th>
-                <th class="td-right" data-i18n="col_total">Toplam Tutarı</th>
-                <th class="td-right" data-i18n="col_date">Tarih</th>
-              </tr>
-            </thead>
-            <tbody id="historyTableBody">
-              <!-- JS ile render edilecek -->
-            </tbody>
-          </table>
+        <!-- YENİ: Timeline Görünümü -->
+        <div class="history-timeline-container" id="historyTimelineContainer">
+          <!-- JS ile doldurulacak -->
         </div>
 
         <!-- Empty State -->
@@ -1016,39 +1057,146 @@
          ⚙️ TAB: AYARLAR
     ================================================ -->
     <div class="tab-panel" id="tab-settings" role="tabpanel" hidden>
-      <div class="container" style="max-width: 600px; margin: 0 auto; padding-top: 2rem;">
-        <h2 style="font-size: 1.5rem; margin-bottom: 24px; font-weight: 700;" data-i18n="modal_settings">Ayarlar</h2>
+      <div class="container" style="padding-top: 2rem;">
+        <h2 style="font-size: 1.5rem; margin-bottom: 24px; font-weight: 700;" data-i18n="modal_settings">Ayarlar Merkezi</h2>
         
-        <div class="glass" style="padding: 24px; border-radius: var(--radius-lg); border: 1px solid var(--border-color);">
-          <h3 style="font-size: 1.1rem; margin-bottom: 12px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 8px;" data-i18n="tab_security">Güvenlik</h3>
-          
-          <div class="form-group" style="margin-top: 16px;">
-            <h4 style="font-size: 1rem; margin-bottom: 8px;" data-i18n="email_verification_title">E-posta Doğrulama</h4>
-            <p style="font-size: 0.85rem; color: var(--color-text-muted); margin-bottom: 16px;" data-i18n="email_verification_desc">Hesabınızı daha güvenli hale getirmek ve tam yetkiyle kullanabilmek için e-postanızı doğrulayın.</p>
-            <div id="emailVerifyStatusWrapper" style="display: flex; flex-direction: column; gap: 12px;">
-              <!-- Onaylı ise -->
-              <div id="verifiedState" style="display: none;">
-                <span id="emailVerifyBadge" style="padding: 6px 12px; border-radius: var(--radius-sm); font-size: 0.85rem; font-weight: 600; background: rgba(0, 255, 136, 0.1); color: var(--color-positive);" data-i18n="status_verified">✔ Onaylı Hesap</span>
-              </div>
-              
-              <!-- Aşama 1: E-posta Gönder -->
-              <div id="verifyStep1" style="display: none; flex-direction: column; gap: 8px;">
-                <label class="form-label" style="margin: 0; font-size: 0.85rem;">E-Posta Adresiniz</label>
-                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-                  <input type="email" id="verifyEmailInput" class="form-input" style="flex: 1; min-width: 200px;">
-                  <button class="btn btn--outline" id="sendCodeBtn">Kodu Gönder</button>
+        <div class="settings-grid">
+          <!-- SOL SÜTUN - HESAP & TERCİHLER -->
+          <div class="settings-col">
+            <!-- Profil Kartı -->
+            <div class="settings-card glass">
+              <h3 class="settings-card__title" data-i18n="settings_profile">Profil</h3>
+              <div class="profile-section">
+                <div class="avatar-selector">
+                  <div class="avatar-preview" id="currentAvatar">👤</div>
+                  <div class="avatar-options">
+                    <button class="avatar-btn active" data-avatar="👤">👤</button>
+                    <button class="avatar-btn" data-avatar="👨‍🚀">👨‍🚀</button>
+                    <button class="avatar-btn" data-avatar="🤖">🤖</button>
+                    <button class="avatar-btn" data-avatar="👽">👽</button>
+                    <button class="avatar-btn" data-avatar="👾">👾</button>
+                  </div>
                 </div>
-              </div>
-              
-              <!-- Aşama 2: Kodu Gir -->
-              <div id="verifyStep2" style="display: none; flex-direction: column; gap: 8px;">
-                <label class="form-label" style="margin: 0; font-size: 0.85rem;">6 Haneli Doğrulama Kodu</label>
-                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-                  <input type="text" id="verifyCodeInput" class="form-input" placeholder="Örn: 123456" maxlength="6" style="flex: 1; min-width: 200px; letter-spacing: 2px; font-weight: bold; text-align: center;">
-                  <button class="btn btn--primary" id="verifyCodeBtn">Doğrula</button>
+                <div class="form-group" style="margin-top: 16px;">
+                  <label class="form-label" data-i18n="settings_username">Kullanıcı Adı</label>
+                  <div style="display: flex; gap: 8px;">
+                    <input type="text" id="settingsUsernameInput" class="form-input" style="flex: 1;">
+                    <button class="btn btn--outline" id="updateUsernameBtn" data-i18n="btn_update">Güncelle</button>
+                  </div>
                 </div>
               </div>
             </div>
+
+            <!-- Uygulama Tercihleri -->
+            <div class="settings-card glass">
+              <h3 class="settings-card__title" data-i18n="settings_preferences">Uygulama Tercihleri</h3>
+              <div class="form-group">
+                <label class="form-label" data-i18n="settings_currency">Varsayılan Para Birimi</label>
+                <select id="currencySelect" class="form-input">
+                  <option value="USD">USD ($)</option>
+                  <option value="TRY">TRY (₺)</option>
+                </select>
+                <p style="font-size: 0.8rem; color: var(--color-text-muted); margin-top: 8px;" data-i18n="settings_currency_desc">Tüm cüzdan bakiyeleri ve piyasa fiyatları bu seçime göre gösterilir.</p>
+              </div>
+            </div>
+
+            <!-- E-posta Doğrulama (Mevcut) -->
+            <div class="settings-card glass">
+              <h3 class="settings-card__title" data-i18n="email_verification_title">E-posta Doğrulama</h3>
+              <p style="font-size: 0.85rem; color: var(--color-text-muted); margin-bottom: 16px;" data-i18n="email_verification_desc">Hesabınızı daha güvenli hale getirmek ve tam yetkiyle kullanabilmek için e-postanızı doğrulayın.</p>
+              <div id="emailVerifyStatusWrapper" style="display: flex; flex-direction: column; gap: 12px;">
+                <!-- Onaylı ise -->
+                <div id="verifiedState" style="display: none;">
+                  <span id="emailVerifyBadge" style="padding: 6px 12px; border-radius: var(--radius-sm); font-size: 0.85rem; font-weight: 600; background: rgba(0, 255, 136, 0.1); color: var(--color-positive);" data-i18n="status_verified">✔ Onaylı Hesap</span>
+                </div>
+                
+                <!-- Aşama 1: E-posta Gönder -->
+                <div id="verifyStep1" style="display: none; flex-direction: column; gap: 8px;">
+                  <label class="form-label" style="margin: 0; font-size: 0.85rem;" data-i18n="label_email">E-Posta Adresiniz</label>
+                  <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                    <input type="email" id="verifyEmailInput" class="form-input" style="flex: 1; min-width: 200px;" disabled>
+                    <button class="btn btn--outline" id="sendCodeBtn" data-i18n="btn_send_code">Kodu Gönder</button>
+                  </div>
+                </div>
+                
+                <!-- Aşama 2: Kodu Gir -->
+                <div id="verifyStep2" style="display: none; flex-direction: column; gap: 8px;">
+                  <label class="form-label" style="margin: 0; font-size: 0.85rem;" data-i18n="label_verify_code">6 Haneli Doğrulama Kodu</label>
+                  <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                    <input type="text" id="verifyCodeInput" class="form-input" placeholder="Örn: 123456" maxlength="6" style="flex: 1; min-width: 200px; letter-spacing: 2px; font-weight: bold; text-align: center;">
+                    <button class="btn btn--primary" id="verifyCodeBtn" data-i18n="btn_verify">Doğrula</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- SAĞ SÜTUN - İLERİ SEVİYE GÜVENLİK -->
+          <div class="settings-col">
+            <!-- Şifre Değiştirme -->
+            <div class="settings-card glass">
+              <h3 class="settings-card__title" data-i18n="settings_security">İleri Seviye Güvenlik</h3>
+              <div class="form-group">
+                <label class="form-label" data-i18n="label_old_password">Mevcut Şifre</label>
+                <input type="password" id="oldPasswordInput" class="form-input">
+              </div>
+              <div class="form-group">
+                <label class="form-label" data-i18n="label_new_password">Yeni Şifre</label>
+                <input type="password" id="newPasswordInput" class="form-input">
+              </div>
+              <div class="form-group">
+                <label class="form-label" data-i18n="label_confirm_password">Yeni Şifre (Tekrar)</label>
+                <input type="password" id="confirmPasswordInput" class="form-input">
+              </div>
+              <button class="btn btn--primary" style="width: 100%;" id="updatePasswordBtn" data-i18n="btn_update_password">Şifreyi Güncelle</button>
+            </div>
+
+            <!-- 2FA Simülasyonu -->
+            <div class="settings-card glass">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                <h3 class="settings-card__title" style="margin: 0;" data-i18n="settings_2fa">İki Faktörlü Doğrulama (2FA)</h3>
+                <label class="switch">
+                  <input type="checkbox" id="toggle2FABtn">
+                  <span class="slider round"></span>
+                </label>
+              </div>
+              
+              <div id="twoFactorSetupArea" style="display: none; flex-direction: column; align-items: center; gap: 16px; margin-top: 16px; border-top: 1px dashed var(--color-border); padding-top: 16px; animation: slideDown 0.3s ease;">
+                <p style="font-size: 0.85rem; color: var(--color-text-muted); text-align: center;" data-i18n="settings_2fa_desc">Google Authenticator veya benzeri bir uygulama ile aşağıdaki QR kodu okutun.</p>
+                <div style="width: 150px; height: 150px; background: white; padding: 10px; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+                  <img src="https://api.qrserver.com/v1/create-qr-code/?size=130x130&data=otpauth://totp/CryptoNova:User?secret=JBSWY3DPEHPK3PXP&issuer=CryptoNova" alt="QR Code" style="max-width: 100%;">
+                </div>
+                <div style="font-family: monospace; letter-spacing: 2px; padding: 8px 16px; background: rgba(255,255,255,0.05); border-radius: 4px; font-weight: bold; color: var(--color-text-primary);">
+                  JBSWY3DPEHPK3PXP
+                </div>
+                <div class="form-group" style="width: 100%;">
+                  <div style="display: flex; gap: 8px;">
+                    <input type="text" id="twoFactorCodeInput" class="form-input" placeholder="6 Haneli Kod" maxlength="6" style="flex: 1; text-align: center; font-weight: bold; letter-spacing: 2px;">
+                    <button class="btn btn--primary" id="verify2FABtn" data-i18n="btn_activate">Aktifleştir</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ALT GENİŞ ALAN - GİRİŞ GÜNLÜĞÜ -->
+        <div class="settings-card glass" style="margin-top: 24px;">
+          <h3 class="settings-card__title" data-i18n="settings_audit_logs">Son Giriş Etkinlikleri</h3>
+          <div class="table-responsive">
+            <table class="market-table audit-table" aria-label="Giriş günlükleri tablosu">
+              <thead>
+                <tr>
+                  <th data-i18n="col_date">Tarih</th>
+                  <th data-i18n="col_device">Cihaz / Tarayıcı</th>
+                  <th data-i18n="col_ip">IP Adresi</th>
+                  <th data-i18n="col_location">Konum</th>
+                </tr>
+              </thead>
+              <tbody id="auditLogsBody">
+                <!-- JS tarafından doldurulacak -->
+              </tbody>
+            </table>
           </div>
         </div>
       </div>

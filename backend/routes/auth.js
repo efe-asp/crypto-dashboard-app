@@ -214,4 +214,50 @@ router.get('/me', protect, (req, res) => {
   });
 });
 
+// =============================================================
+// PUT /api/auth/change-password — Şifre Değiştirme (Korunan)
+// =============================================================
+router.put('/change-password', protect, async (req, res) => {
+  try {
+    const { oldPassword, newPassword, confirmPassword } = req.body;
+    if (!oldPassword || !newPassword || !confirmPassword)
+      return res.status(400).json({ success: false, message: 'Tüm alanlar zorunludur.' });
+    if (newPassword !== confirmPassword)
+      return res.status(400).json({ success: false, message: 'Yeni şifreler eşleşmiyor.' });
+
+    await UserModel.changePassword(req.user.id, oldPassword, newPassword);
+    res.status(200).json({ success: true, message: 'Şifreniz başarıyla güncellendi.' });
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message });
+  }
+});
+
+// =============================================================
+// PUT /api/auth/update-profile — Profil Güncelleme (Korunan)
+// =============================================================
+router.put('/update-profile', protect, async (req, res) => {
+  try {
+    const { username } = req.body;
+    if (!username)
+      return res.status(400).json({ success: false, message: 'Kullanıcı adı zorunludur.' });
+
+    const updatedUser = UserModel.updateUsername(req.user.id, username);
+    res.status(200).json({
+      success: true,
+      message: 'Kullanıcı adınız güncellendi.',
+      user: {
+        id       : updatedUser.id,
+        username : updatedUser.username,
+        email    : updatedUser.email,
+        watchlist: updatedUser.watchlist,
+        is_verified: updatedUser.is_verified,
+        createdAt: updatedUser.createdAt
+      }
+    });
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message });
+  }
+});
+
 module.exports = router;
+

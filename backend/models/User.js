@@ -209,6 +209,44 @@ const verifyCode = (userId, code) => {
   return true;
 };
 
+/**
+ * Kullanıcı adını güncelle.
+ */
+const updateUsername = (userId, newUsername) => {
+  if (!newUsername || newUsername.length < 3 || newUsername.length > 30)
+    throw new Error('Kullanıcı adı 3-30 karakter olmalıdır.');
+  if (!/^[a-zA-Z0-9_]+$/.test(newUsername))
+    throw new Error('Kullanıcı adı yalnızca harf, rakam ve alt çizgi içerebilir.');
+
+  const existing = db.prepare('SELECT id FROM users WHERE username = ? AND id != ?').get(newUsername.trim(), userId);
+  if (existing) throw new Error('Kullanıcı adı zaten kullanımda.');
+
+  db.prepare("UPDATE users SET username = ?, updated_at = datetime('now') WHERE id = ?")
+    .run(newUsername.trim(), userId);
+
+  return findById(userId);
+};
+
+/**
+ * Şifreyi değiştir (eski şifre doğrulamasıyla).
+ */
+const changePassword = async (userId, oldPassword, newPassword) => {
+  if (!oldPassword || !newPassword) throw new Error('Tüm alanlar zorunludur.');
+  if (newPassword.length < 6) throw new Error('Yeni şifre en az 6 karakter olmalıdır.');
+
+  const user = db.prepare('SELECT password FROM users WHERE id = ?').get(userId);
+  if (!user) throw new Error('Kullanıcı bulunamadı.');
+
+  const isMatch = await bcrypt.compare(oldPassword, user.password);
+  if (!isMatch) throw new Error('Mevcut şifreniz hatalı.');
+
+  const hashed = await bcrypt.hash(newPassword, 12);
+  db.prepare("UPDATE users SET password = ?, updated_at = datetime('now') WHERE id = ?")
+    .run(hashed, userId);
+
+  return true;
+};
+
 module.exports = {
   createUser,
   findById,
@@ -218,5 +256,7 @@ module.exports = {
   removeFromWatchlist,
   getWatchlist,
   sendVerificationCode,
-  verifyCode
+  verifyCode,
+  updateUsername,
+  changePassword
 };
