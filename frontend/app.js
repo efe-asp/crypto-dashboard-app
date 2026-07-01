@@ -2857,12 +2857,50 @@ const SettingsModule = (() => {
       }
     } catch (err) { Toast.error('Hata', err.message); }
   };
+  const loadLoginHistory = async () => {
+    try {
+      const res = await fetch('/api/user/login-history', {
+        headers: { 'Authorization': `Bearer ${Auth.getToken()}` }
+      });
+      const data = await res.json();
+      
+      const tbody = document.getElementById('login-history-body');
+      if (!tbody) return;
+      
+      if (!data.success || !data.logs || data.logs.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--color-text-muted);">Giriş etkinliği bulunamadı.</td></tr>';
+        return;
+      }
+      
+      const formatDate = (dateString) => {
+        const d = new Date(dateString);
+        const months = ["Oca", "Şub", "Mar", "Nis", "May", "Haz", "Tem", "Ağu", "Eyl", "Eki", "Kas", "Ara"];
+        const day = d.getDate();
+        const month = months[d.getMonth()];
+        const hours = d.getHours().toString().padStart(2, '0');
+        const mins = d.getMinutes().toString().padStart(2, '0');
+        return `${day} ${month} ${hours}:${mins}`;
+      };
+      
+      tbody.innerHTML = data.logs.map(log => `
+        <tr>
+          <td>${formatDate(log.login_time)}</td>
+          <td>${log.device_browser || 'Bilinmiyor'}</td>
+          <td>${log.ip_address || 'Bilinmiyor'}</td>
+          <td>${log.location || 'Bilinmiyor'}</td>
+        </tr>
+      `).join('');
+    } catch (err) {
+      console.error('Login history error:', err);
+    }
+  };
 
   const init = () => {
     document.getElementById('settingsBtn')?.addEventListener('click', () => {
       document.getElementById('userDropdown').hidden = true;
       TabRouter.goTo('settings');
       updateUI();
+      loadLoginHistory();
     });
     
     document.querySelectorAll('.avatar-btn').forEach(btn => {
@@ -2879,22 +2917,7 @@ const SettingsModule = (() => {
 
     document.getElementById('updatePasswordBtn')?.addEventListener('click', updatePassword);
     
-    const toggle2FA = document.getElementById('toggle2FABtn');
-    if (toggle2FA) {
-      toggle2FA.addEventListener('change', (e) => {
-        document.getElementById('twoFactorSetupArea').style.display = e.target.checked ? 'flex' : 'none';
-      });
-    }
 
-    document.getElementById('verify2FABtn')?.addEventListener('click', () => {
-      const code = document.getElementById('twoFactorCodeInput')?.value;
-      if (code && code.length === 6) {
-        Toast.success('2FA başarıyla aktifleştirildi.');
-        document.getElementById('twoFactorSetupArea').style.display = 'none';
-      } else {
-        Toast.error('Hata', 'Geçersiz kod.');
-      }
-    });
 
     document.getElementById('sendCodeBtn')?.addEventListener('click', sendCode);
     document.getElementById('verifyCodeBtn')?.addEventListener('click', verifyCode);

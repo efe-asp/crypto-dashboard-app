@@ -83,6 +83,19 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_wallets_user_id       ON wallets(user_id);
   CREATE INDEX IF NOT EXISTS idx_transactions_user_id  ON transactions(user_id);
   CREATE INDEX IF NOT EXISTS idx_transactions_created  ON transactions(timestamp DESC);
+
+  -- --------------------------------------------------------
+  -- GİRİŞ ETKİNLİKLERİ (Login History)
+  -- --------------------------------------------------------
+  CREATE TABLE IF NOT EXISTS login_activities (
+    id             INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id        INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    login_time     TEXT    NOT NULL DEFAULT (datetime('now')),
+    device_browser TEXT,
+    ip_address     TEXT,
+    location       TEXT
+  );
+  CREATE INDEX IF NOT EXISTS idx_login_activities_user_id ON login_activities(user_id);
 `);
 
 console.log(`✅ SQLite Veritabanı hazır: ${DB_PATH}`);

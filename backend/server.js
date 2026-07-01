@@ -80,10 +80,12 @@ app.use(express.static(path.join(__dirname, '..', 'frontend')));
 const authRoutes   = require('./routes/auth');
 const cryptoRoutes = require('./routes/crypto');
 const walletRoutes = require('./routes/wallet');
+const userRoutes   = require('./routes/user');
 
 app.use('/api/auth',   authRoutes);
 app.use('/api/crypto', cryptoRoutes);
 app.use('/api/wallet', walletRoutes);
+app.use('/api/user',   userRoutes);
 
 // Sağlık kontrolü
 app.get('/api/health', (req, res) => {

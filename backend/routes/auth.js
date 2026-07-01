@@ -82,7 +82,67 @@ router.post('/login', async (req, res) => {
 
     const user = await UserModel.findByCredentials(email, password);
 
-    console.log(`✅ Giriş: ${user.username} (${user.email})`);
+    // =========================================================
+    // YENİ: Login Activity Kaydetme
+    // =========================================================
+    // 1) IP Adresi
+    let ipAddress = req.headers['x-forwarded-for'] || req.socket.remoteAddress || '127.0.0.1';
+    // ::ffff:127.0.0.1 şeklinde gelebilir, temizleyelim
+    if (ipAddress.includes('::ffff:')) {
+      ipAddress = ipAddress.split('::ffff:')[1];
+    }
+    if (ipAddress === '::1' || ipAddress === '127.0.0.1') {
+      ipAddress = '192.168.1.45'; // Lokal test için simüle edilmiş IP
+    }
+    
+    // 2) Cihaz / Tarayıcı
+    const userAgent = req.headers['user-agent'] || '';
+    let os = 'Bilinmiyor';
+    if (userAgent.includes('Windows')) os = 'Windows';
+    else if (userAgent.includes('Mac')) os = 'Mac OS';
+    else if (userAgent.includes('Linux')) os = 'Linux';
+    else if (userAgent.includes('Android')) os = 'Android';
+    else if (userAgent.includes('iOS') || userAgent.includes('iPhone') || userAgent.includes('iPad')) os = 'iOS';
+    
+    let browser = 'Bilinmiyor';
+    if (userAgent.includes('Edg')) browser = 'Edge';
+    else if (userAgent.includes('OPR') || userAgent.includes('Opera')) browser = 'Opera';
+    else if (userAgent.includes('Chrome')) browser = 'Chrome';
+    else if (userAgent.includes('Firefox')) browser = 'Firefox';
+    else if (userAgent.includes('Safari') && !userAgent.includes('Chrome')) browser = 'Safari';
+    
+    const deviceBrowser = `${os} / ${browser}`;
+
+    // 3) Konum (GeoIP)
+    let location = 'Bilinmiyor';
+    try {
+      // Eğer IP adresi lokal ağ ise (127.0.0.1, ::1, 192.168.*, vs), GeoIP servisi hata verir.
+      // API'nin test edilebilmesi için simüle edilmiş bir Türkiye IP'si kullanalım:
+      let fetchIp = ipAddress;
+      if (ipAddress === '::1' || ipAddress === '127.0.0.1' || ipAddress.startsWith('192.168.') || ipAddress === '192.168.1.45') {
+        fetchIp = '85.153.226.11'; // Simüle edilmiş İstanbul, TR IP adresi
+      }
+
+      // Global fetch Node 18+ ile kullanılabilir.
+      const geoRes = await fetch(`https://ipapi.co/${fetchIp}/json/`);
+      if (geoRes.ok) {
+        const geoData = await geoRes.json();
+        if (geoData.city && geoData.country_name) {
+          location = `${geoData.city}, ${geoData.country_name}`; // geoData.country_name ile ülke ismini al
+        } else if (geoData.error) {
+           console.log('GeoIP API Hatası:', geoData.reason);
+        }
+      }
+    } catch (err) {
+      console.log('GeoIP Hatası:', err.message);
+    }
+
+    // 4) Veritabanına kaydet
+    const db = require('../db');
+    db.prepare('INSERT INTO login_activities (user_id, device_browser, ip_address, location) VALUES (?, ?, ?, ?)')
+      .run(user.id, deviceBrowser, ipAddress, location);
+
+    console.log(`✅ Giriş: ${user.username} (${user.email}) - IP: ${ipAddress}`);
     sendTokenResponse(user, 200, res, 'Giriş başarılı!');
 
   } catch (error) {

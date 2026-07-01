@@ -1151,32 +1151,6 @@
               <button class="btn btn--primary" style="width: 100%;" id="updatePasswordBtn" data-i18n="btn_update_password">Şifreyi Güncelle</button>
             </div>
 
-            <!-- 2FA Simülasyonu -->
-            <div class="settings-card glass">
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-                <h3 class="settings-card__title" style="margin: 0;" data-i18n="settings_2fa">İki Faktörlü Doğrulama (2FA)</h3>
-                <label class="switch">
-                  <input type="checkbox" id="toggle2FABtn">
-                  <span class="slider round"></span>
-                </label>
-              </div>
-              
-              <div id="twoFactorSetupArea" style="display: none; flex-direction: column; align-items: center; gap: 16px; margin-top: 16px; border-top: 1px dashed var(--color-border); padding-top: 16px; animation: slideDown 0.3s ease;">
-                <p style="font-size: 0.85rem; color: var(--color-text-muted); text-align: center;" data-i18n="settings_2fa_desc">Google Authenticator veya benzeri bir uygulama ile aşağıdaki QR kodu okutun.</p>
-                <div style="width: 150px; height: 150px; background: white; padding: 10px; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
-                  <img src="https://api.qrserver.com/v1/create-qr-code/?size=130x130&data=otpauth://totp/CryptoNova:User?secret=JBSWY3DPEHPK3PXP&issuer=CryptoNova" alt="QR Code" style="max-width: 100%;">
-                </div>
-                <div style="font-family: monospace; letter-spacing: 2px; padding: 8px 16px; background: rgba(255,255,255,0.05); border-radius: 4px; font-weight: bold; color: var(--color-text-primary);">
-                  JBSWY3DPEHPK3PXP
-                </div>
-                <div class="form-group" style="width: 100%;">
-                  <div style="display: flex; gap: 8px;">
-                    <input type="text" id="twoFactorCodeInput" class="form-input" placeholder="6 Haneli Kod" maxlength="6" style="flex: 1; text-align: center; font-weight: bold; letter-spacing: 2px;">
-                    <button class="btn btn--primary" id="verify2FABtn" data-i18n="btn_activate">Aktifleştir</button>
-                  </div>
-                </div>
-              </div>
-            </div>
           </div>
         </div>
 
@@ -1193,7 +1167,7 @@
                   <th data-i18n="col_location">Konum</th>
                 </tr>
               </thead>
-              <tbody id="auditLogsBody">
+              <tbody id="login-history-body">
                 <!-- JS tarafından doldurulacak -->
               </tbody>
             </table>
