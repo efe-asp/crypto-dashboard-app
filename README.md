@@ -20,6 +20,14 @@ This project is built as a clean **Full-Stack** application using **Node.js & Ex
 * **Server-Side Watchlist:** User watchlists are stored directly in the SQLite database rather than local storage, allowing persistency across sessions.
 * **Debounced Search Engine:** Instantly search for coins with a built-in debounce delay to minimize server requests.
 * **Trending & Global Stats:** Discover the top searched coins in the last 24h and monitor global market cap dominance.
+* **Wallet & Trading Engine:**
+  * Fiat Deposit & Withdrawals (USD).
+  * Real-time Buy/Sell features with ACID transactions.
+  * P2P Crypto & Fiat transfers via email.
+  * Average Buy Price (P&L) and Transaction History.
+  * Excel Export for transaction history.
+* **Staking / Earn System:** Lock assets to earn passive income (e.g., 12% APY).
+* **Security & Auditing:** Login history tracking (IP, Device, Location).
 * **Premium UI/UX:**
   * Clean glassmorphism cards with glowing neon purple/cyan accents.
   * Shimmering **Skeleton Loaders** for all data-fetching sections.
@@ -40,6 +48,7 @@ This project is built as a clean **Full-Stack** application using **Node.js & Ex
   * `express-rate-limit` (Brute-force and DDoS protection)
   * `cors` (Cross-Origin Resource Sharing)
   * `node-cache` (In-memory server cache)
+  * `exceljs` (Exporting transaction history)
 
 ---
 
@@ -56,7 +65,9 @@ Canlı Borsa Takip API/
 │   │   └── User.js             # SQLite user CRUD & watchlist operations
 │   ├── routes/
 │   │   ├── auth.js             # Login / Register API endpoints
-│   │   └── crypto.js           # CoinGecko proxy & watchlist API endpoints
+│   │   ├── crypto.js           # CoinGecko proxy & watchlist API endpoints
+│   │   ├── wallet.js           # Wallet, Trading, Staking & Transfers
+│   │   └── user.js             # User profile & login history
 │   └── middleware/
 │       └── auth.js             # JWT verification middleware
 │
@@ -134,6 +145,14 @@ Bu proje; arka planda **Node.js & Express.js** ve yerel **SQLite** veritabanı, 
 * **Kişisel İzleme Listesi (Watchlist):** LocalStorage yerine doğrudan veritabanında (SQLite) kullanıcının hesabıyla eşleşen favori coin listesi.
 * **Debounced Coin Arama:** Kullanıcı yazarken sunucuyu yormayan gecikmeli (debounced) anlık coin arama motoru.
 * **Trend & Küresel Veriler:** Son 24 saatte en çok aranan popüler coinler ve küresel kripto piyasası istatistikleri.
+* **Cüzdan & Al-Sat Sistemi:**
+  * USD yatırma ve çekme (Fiat Gateway).
+  * Gerçek zamanlı fiyatlarla anlık al-sat (ACID korumalı).
+  * E-posta adresi üzerinden kullanıcılar arası (P2P) para transferi.
+  * Ortalama maliyet (Kâr/Zarar) hesaplaması ve İşlem Geçmişi.
+  * İşlem geçmişini Excel (.xlsx) olarak dışa aktarma.
+* **Staking (Kazan) Sistemi:** Kripto varlıkları kilitleyerek pasif gelir (örn: %12 APY) elde etme.
+* **Güvenlik & Denetim:** Son giriş aktivitelerinin (IP, Cihaz, Konum) takibi.
 * **Premium UI/UX:**
   * Modern koyu tema, mor/cyan neon efektleri ve buzlu cam (glassmorphism) pencereleri.
   * Sayfa yüklenirken verilerin yerini alan parıltılı **Skeleton Loading** kartları.
@@ -154,6 +173,7 @@ Bu proje; arka planda **Node.js & Express.js** ve yerel **SQLite** veritabanı, 
   * `express-rate-limit` (DDoS ve kaba kuvvet saldırısı koruması)
   * `cors` (Güvenli kaynak paylaşımı)
   * `node-cache` (In-memory sunucu önbelleği)
+  * `exceljs` (İşlem geçmişini dışa aktarma)
 
 ---
 
@@ -170,7 +190,9 @@ Canlı Borsa Takip API/
 │   │   └── User.js             # SQLite veritabanı CRUD işlemleri (watchlist dahil)
 │   ├── routes/
 │   │   ├── auth.js             # Kayıt / Giriş API rotaları
-│   │   └── crypto.js           # CoinGecko proxy ve watchlist API rotaları
+│   │   ├── crypto.js           # CoinGecko proxy ve watchlist API rotaları
+│   │   ├── wallet.js           # Cüzdan, Al-Sat, Staking ve Transfer API rotaları
+│   │   └── user.js             # Kullanıcı profili ve giriş geçmişi API rotaları
 │   └── middleware/
 │       └── auth.js             # JWT koruma middleware'i
 │
